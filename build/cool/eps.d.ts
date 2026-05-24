@@ -589,6 +589,103 @@ declare namespace Eps {
 		[key: string]: any;
 	}
 
+	interface PodGenerationBatchEntity {
+		/**
+		 * ID
+		 */
+		id?: number;
+
+		/**
+		 * 批次ID
+		 */
+		batchNo?: string;
+
+		/**
+		 * 主题
+		 */
+		topic?: string;
+
+		/**
+		 * 主题标识
+		 */
+		topicSlug?: string;
+
+		/**
+		 * 数量
+		 */
+		count?: number;
+
+		/**
+		 * 并发数
+		 */
+		concurrency?: number;
+
+		/**
+		 * 失败重试次数
+		 */
+		retries?: number;
+
+		/**
+		 * 单张超时时间(ms)
+		 */
+		timeoutMs?: number;
+
+		/**
+		 * 状态 pending/running/completed/partial_failed/failed
+		 */
+		status?: string;
+
+		/**
+		 * 成功数
+		 */
+		successCount?: number;
+
+		/**
+		 * 失败数
+		 */
+		failedCount?: number;
+
+		/**
+		 * 提示词数量
+		 */
+		promptCount?: number;
+
+		/**
+		 * 已确认提示词数量
+		 */
+		approvedPromptCount?: number;
+
+		/**
+		 * 输出目录
+		 */
+		outputDir?: string;
+
+		/**
+		 * 扩展配置
+		 */
+		options?: any;
+
+		/**
+		 * 错误信息
+		 */
+		error?: string;
+
+		/**
+		 * 创建时间
+		 */
+		createTime?: string;
+
+		/**
+		 * 更新时间
+		 */
+		updateTime?: string;
+
+		/**
+		 * 任意键值
+		 */
+		[key: string]: any;
+	}
+
 	interface RecycleDataEntity {
 		/**
 		 * ID
@@ -961,26 +1058,6 @@ declare namespace Eps {
 		description?: string;
 
 		/**
-		 * 生日
-		 */
-		birthday?: string;
-
-		/**
-		 * 省
-		 */
-		province?: string;
-
-		/**
-		 * 市
-		 */
-		city?: string;
-
-		/**
-		 * 区
-		 */
-		district?: string;
-
-		/**
 		 * 创建时间
 		 */
 		createTime?: string;
@@ -1054,6 +1131,11 @@ declare namespace Eps {
 	interface PluginInfoPageResponse {
 		pagination: PagePagination;
 		list: PluginInfoEntity[];
+	}
+
+	interface PodGenerationPageResponse {
+		pagination: PagePagination;
+		list: PodGenerationBatchEntity[];
 	}
 
 	interface RecycleDataPageResponse {
@@ -1854,6 +1936,144 @@ declare namespace Eps {
 		request: Request;
 	}
 
+	interface PodGeneration {
+		/**
+		 * 确认提示词
+		 */
+		approvePrompts(data?: any): Promise<any>;
+
+		/**
+		 * 驳回提示词
+		 */
+		rejectPrompts(data?: any): Promise<any>;
+
+		/**
+		 * 更新提示词
+		 */
+		updatePrompt(data?: any): Promise<any>;
+
+		/**
+		 * 创建批次
+		 */
+		createBatch(data?: any): Promise<any>;
+
+		/**
+		 * 重试失败项
+		 */
+		retryFailed(data?: any): Promise<any>;
+
+		/**
+		 * 批量重试任务项
+		 */
+		retryItems(data?: any): Promise<any>;
+
+		/**
+		 * 重试任务项
+		 */
+		retryItem(data?: any): Promise<any>;
+
+		/**
+		 * 执行批次
+		 */
+		runBatch(data?: any): Promise<any>;
+
+		/**
+		 * 批次详情
+		 */
+		detail(data?: any): Promise<any>;
+
+		/**
+		 * 删除
+		 */
+		delete(data?: any): Promise<any>;
+
+		/**
+		 * 任务项分页
+		 */
+		items(data?: any): Promise<any>;
+
+		/**
+		 * 单个信息
+		 */
+		info(data?: any): Promise<PodGenerationBatchEntity>;
+
+		/**
+		 * 列表查询
+		 */
+		list(data?: any): Promise<PodGenerationBatchEntity[]>;
+
+		/**
+		 * 分页查询
+		 */
+		page(data?: any): Promise<PodGenerationPageResponse>;
+
+		/**
+		 * 权限标识
+		 */
+		permission: {
+			approvePrompts: string;
+			rejectPrompts: string;
+			updatePrompt: string;
+			createBatch: string;
+			retryFailed: string;
+			retryItems: string;
+			retryItem: string;
+			runBatch: string;
+			detail: string;
+			delete: string;
+			items: string;
+			info: string;
+			list: string;
+			page: string;
+		};
+
+		/**
+		 * 权限状态
+		 */
+		_permission: {
+			approvePrompts: boolean;
+			rejectPrompts: boolean;
+			updatePrompt: boolean;
+			createBatch: boolean;
+			retryFailed: boolean;
+			retryItems: boolean;
+			retryItem: boolean;
+			runBatch: boolean;
+			detail: boolean;
+			delete: boolean;
+			items: boolean;
+			info: boolean;
+			list: boolean;
+			page: boolean;
+		};
+
+		request: Request;
+	}
+
+	interface PodSetting {
+		/**
+		 * 获得设置
+		 */
+		info(data?: any): Promise<any>;
+
+		/**
+		 * 保存设置
+		 */
+		save(data?: any): Promise<any>;
+
+		/**
+		 * 权限标识
+		 */
+		permission: { info: string; save: string };
+
+		/**
+		 * 权限状态
+		 */
+		_permission: { info: boolean; save: boolean };
+
+		request: Request;
+	}
+
 	interface RecycleData {
 		/**
 		 * 恢复数据
@@ -2227,6 +2447,7 @@ declare namespace Eps {
 		demo: { goods: DemoGoods; tenant: DemoTenant };
 		dict: { info: DictInfo; type: DictType };
 		plugin: { info: PluginInfo };
+		pod: { generation: PodGeneration; setting: PodSetting };
 		recycle: { data: RecycleData };
 		space: { info: SpaceInfo; type: SpaceType };
 		task: { info: TaskInfo };
