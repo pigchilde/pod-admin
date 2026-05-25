@@ -24,8 +24,11 @@
 					<el-form-item label="图片模型">
 						<el-input v-model="form.generation.model" placeholder="gpt-image-2" />
 					</el-form-item>
-					<el-form-item label="图片尺寸">
-						<el-input v-model="form.generation.size" placeholder="2048x2048" />
+					<el-form-item label="生图尺寸">
+						<el-input v-model="form.generation.size" placeholder="1024x1024" />
+					</el-form-item>
+					<el-form-item label="输出尺寸">
+						<el-input v-model="form.generation.outputSize" placeholder="2048x2048" />
 					</el-form-item>
 					<el-form-item label="超时时间(ms)">
 						<el-input-number
@@ -96,7 +99,8 @@ const form = reactive({
 		endpoint: '',
 		apiKey: '',
 		model: '',
-		size: '2048x2048'
+		size: '1024x1024',
+		outputSize: '2048x2048'
 	},
 	prompt: {
 		provider: '',

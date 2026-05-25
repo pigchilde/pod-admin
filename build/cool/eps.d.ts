@@ -631,7 +631,7 @@ declare namespace Eps {
 		timeoutMs?: number;
 
 		/**
-		 * 状态 pending/running/completed/partial_failed/failed
+		 * 状态 prompt_generating/prompt_ready/image_generating/completed/partial_failed/failed
 		 */
 		status?: string;
 
