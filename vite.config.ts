@@ -49,7 +49,8 @@ export default ({ mode }: ConfigEnv): UserConfig => {
 			proxy,
 			hmr: {
 				overlay: true
-			}
+			},
+			allowedHosts: ['pod.oyapick.org']
 		},
 		css: {
 			preprocessorOptions: {
