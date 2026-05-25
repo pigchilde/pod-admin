@@ -189,10 +189,12 @@ function openCreate() {
 					.createBatch(data)
 					.then((res: any) => {
 						ElMessage.success('批次已创建，提示词已生成');
+						done();
 						close();
+						Form.value?.close();
 						Crud.value?.refresh();
 						if (res?.id) {
-							goDetail(res);
+							setTimeout(() => goDetail(res), 0);
 						}
 					})
 					.catch(err => {

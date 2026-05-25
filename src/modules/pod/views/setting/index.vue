@@ -147,7 +147,10 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .pod-setting {
+	box-sizing: border-box;
+	height: 100%;
 	padding: 16px;
+	overflow-y: auto;
 
 	&__form {
 		max-width: 1180px;
@@ -180,6 +183,7 @@ onMounted(() => {
 	justify-content: flex-end;
 	gap: 10px;
 	max-width: 1180px;
+	padding-bottom: 16px;
 }
 
 @media (max-width: 900px) {

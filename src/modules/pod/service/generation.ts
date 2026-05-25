@@ -9,7 +9,8 @@ class PodGenerationService extends BaseService {
 		return this.request({
 			url: '/createBatch',
 			method: 'POST',
-			data
+			data,
+			timeout: 180000
 		});
 	}
 
