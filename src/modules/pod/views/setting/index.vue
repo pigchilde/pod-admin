@@ -57,6 +57,14 @@
 						<el-input v-model="form.prompt.model" placeholder="deepseek-v4-pro" />
 					</el-form-item>
 				</div>
+				<el-form-item label="System Prompt">
+					<el-input
+						v-model="form.prompt.systemPrompt"
+						type="textarea"
+						:rows="5"
+						placeholder="用于约束 DeepSeek 生成提示词时的系统角色指令。"
+					/>
+				</el-form-item>
 			</div>
 
 			<div class="section">
@@ -106,7 +114,8 @@ const form = reactive({
 		provider: '',
 		endpoint: '',
 		apiKey: '',
-		model: ''
+		model: '',
+		systemPrompt: ''
 	},
 	unifiedPrompt: ''
 });
