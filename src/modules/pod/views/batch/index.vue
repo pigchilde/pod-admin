@@ -53,7 +53,7 @@ defineOptions({
 
 import { useCrud, useForm, useTable } from '@cool-vue/crud';
 import { Plus } from '@element-plus/icons-vue';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { podGenerationService } from '../../service/generation';
@@ -94,13 +94,20 @@ const Table = useTable({
 		{ prop: 'createTime', label: '创建时间', width: 170, sortable: 'desc' },
 		{
 			type: 'op',
-			width: 120,
+			width: 200,
 			buttons: [
 				{
 					label: '详情',
 					type: 'primary',
 					onClick({ scope }) {
 						goDetail(scope.row);
+					}
+				},
+				{
+					label: '删除',
+					type: 'danger',
+					onClick({ scope }) {
+						removeBatch(scope.row);
 					}
 				}
 			]
@@ -208,6 +215,24 @@ function openCreate() {
 
 function goDetail(row: any) {
 	router.push(`/pod/generation/detail/${row.id}`);
+}
+
+function removeBatch(row: any) {
+	ElMessageBox.confirm(`将删除批次「${row.batchNo}」及其所有图片记录，是否继续？`, '提示', {
+		type: 'warning'
+	})
+		.then(() => {
+			podGenerationService
+				.delete({ ids: [row.id] })
+				.then(() => {
+					ElMessage.success('批次已删除');
+					Crud.value?.refresh();
+				})
+				.catch(err => {
+					ElMessage.error(err.message);
+				});
+		})
+		.catch(() => null);
 }
 </script>
 
