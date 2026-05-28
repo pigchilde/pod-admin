@@ -131,7 +131,7 @@ const Table = useTable({
 		{ prop: 'error', label: '错误', minWidth: 180, showOverflowTooltip: true },
 		{
 			type: 'op',
-			width: 220,
+			width: 280,
 			buttons({ scope }) {
 				return [
 					{
@@ -155,6 +155,14 @@ const Table = useTable({
 						hidden: scope.row.status === 'running',
 						onClick() {
 							retryItem(scope.row);
+						}
+					},
+					{
+						label: '抠图',
+						type: 'primary',
+						hidden: scope.row.status !== 'success' || !scope.row.imageUrl,
+						onClick() {
+							cutoutItem(scope.row);
 						}
 					}
 				];
@@ -294,6 +302,17 @@ function retrySelection() {
 	}).then(() => {
 		podGenerationService.retryItems({ ids: rows.map(e => e.id) }).then(() => {
 			ElMessage.success('重生成完成');
+			refresh();
+		});
+	});
+}
+
+function cutoutItem(row: any) {
+	ElMessageBox.confirm('将对当前图片执行抠图，并覆盖为透明背景版本，是否继续？', '提示', {
+		type: 'warning'
+	}).then(() => {
+		podGenerationService.cutoutItem({ id: row.id }).then(() => {
+			ElMessage.success('抠图完成');
 			refresh();
 		});
 	});

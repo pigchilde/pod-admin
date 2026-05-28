@@ -1968,6 +1968,11 @@ declare namespace Eps {
 		retryItems(data?: any): Promise<any>;
 
 		/**
+		 * 任务项抠图
+		 */
+		cutoutItem(data?: any): Promise<any>;
+
+		/**
 		 * 重试任务项
 		 */
 		retryItem(data?: any): Promise<any>;
@@ -2017,6 +2022,7 @@ declare namespace Eps {
 			createBatch: string;
 			retryFailed: string;
 			retryItems: string;
+			cutoutItem: string;
 			retryItem: string;
 			runBatch: string;
 			detail: string;
@@ -2037,6 +2043,7 @@ declare namespace Eps {
 			createBatch: boolean;
 			retryFailed: boolean;
 			retryItems: boolean;
+			cutoutItem: boolean;
 			retryItem: boolean;
 			runBatch: boolean;
 			detail: boolean;

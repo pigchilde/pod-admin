@@ -79,6 +79,29 @@
 				</el-form-item>
 			</div>
 
+			<div class="section">
+				<div class="section__title">ComfyUI 抠图配置</div>
+				<div class="grid">
+					<el-form-item label="启用抠图">
+						<el-switch v-model="form.cutout.enabled" />
+					</el-form-item>
+					<el-form-item label="ComfyUI 地址">
+						<el-input v-model="form.cutout.endpoint" placeholder="http://127.0.0.1:8000" />
+					</el-form-item>
+					<el-form-item label="抠图模型">
+						<el-input v-model="form.cutout.model" placeholder="birefnet.safetensors" />
+					</el-form-item>
+					<el-form-item label="抠图超时时间(ms)">
+						<el-input-number
+							v-model="form.cutout.timeoutMs"
+							:min="30000"
+							:max="600000"
+							:step="10000"
+						/>
+					</el-form-item>
+				</div>
+			</div>
+
 			<div class="actions">
 				<el-button @click="load">刷新</el-button>
 				<el-button type="primary" :loading="saving" @click="save">保存设置</el-button>
@@ -117,12 +140,19 @@ const form = reactive({
 		model: '',
 		systemPrompt: ''
 	},
+	cutout: {
+		enabled: true,
+		endpoint: 'http://127.0.0.1:8000',
+		model: 'birefnet.safetensors',
+		timeoutMs: 180000
+	},
 	unifiedPrompt: ''
 });
 
 function setForm(data: any) {
 	Object.assign(form.generation, data?.generation || {});
 	Object.assign(form.prompt, data?.prompt || {});
+	Object.assign(form.cutout, data?.cutout || {});
 	form.unifiedPrompt = data?.unifiedPrompt || '';
 }
 

@@ -46,6 +46,15 @@ class PodGenerationService extends BaseService {
 		});
 	}
 
+	cutoutItem(data: any) {
+		return this.request({
+			url: '/cutoutItem',
+			method: 'POST',
+			data,
+			timeout: 180000
+		});
+	}
+
 	updatePrompt(data: any) {
 		return this.request({
 			url: '/updatePrompt',
