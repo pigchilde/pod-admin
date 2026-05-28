@@ -18,8 +18,8 @@
 				<template #column-imageUrl="{ scope }">
 					<el-image
 						v-if="scope.row.imageUrl"
-						:src="scope.row.imageUrl"
-						:preview-src-list="[scope.row.imageUrl]"
+						:src="imagePreviewUrl(scope.row.imageUrl, scope.row)"
+						:preview-src-list="[imagePreviewUrl(scope.row.imageUrl, scope.row)]"
 						preview-teleported
 						fit="cover"
 						class="preview"
@@ -30,8 +30,8 @@
 				<template #column-mockupImageUrl="{ scope }">
 					<el-image
 						v-if="scope.row.mockupImageUrl"
-						:src="scope.row.mockupImageUrl"
-						:preview-src-list="[scope.row.mockupImageUrl]"
+						:src="imagePreviewUrl(scope.row.mockupImageUrl, scope.row)"
+						:preview-src-list="[imagePreviewUrl(scope.row.mockupImageUrl, scope.row)]"
 						preview-teleported
 						fit="cover"
 						class="preview"
@@ -152,6 +152,18 @@ function promptStatusType(status: string) {
 	return ({ draft: 'warning', approved: 'success', rejected: 'danger' } as any)[
 		status || 'draft'
 	];
+}
+
+function imagePreviewUrl(url: string, row: any) {
+	if (!url) {
+		return '';
+	}
+	if (url.includes('v=')) {
+		return url;
+	}
+	const version = row.updateTime || row.createTime || Date.now();
+	const separator = url.includes('?') ? '&' : '?';
+	return `${url}${separator}v=${encodeURIComponent(version)}`;
 }
 
 function generateMockupItem(row: any) {
