@@ -55,6 +55,15 @@ class PodGenerationService extends BaseService {
 		});
 	}
 
+	generateMockupItem(data: any) {
+		return this.request({
+			url: '/generateMockupItem',
+			method: 'POST',
+			data,
+			timeout: 180000
+		});
+	}
+
 	updatePrompt(data: any) {
 		return this.request({
 			url: '/updatePrompt',

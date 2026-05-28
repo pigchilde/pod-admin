@@ -48,6 +48,18 @@
 					<div v-else class="empty">未生成</div>
 				</template>
 
+				<template #column-mockupImageUrl="{ scope }">
+					<el-image
+						v-if="scope.row.mockupImageUrl"
+						:src="scope.row.mockupImageUrl"
+						:preview-src-list="[scope.row.mockupImageUrl]"
+						preview-teleported
+						fit="cover"
+						class="preview"
+					/>
+					<div v-else class="empty">未生成</div>
+				</template>
+
 				<template #column-promptStatus="{ scope }">
 					<el-tag :type="promptStatusType(scope.row.promptStatus)" effect="plain">
 						{{ promptStatusText(scope.row.promptStatus) }}
@@ -122,6 +134,7 @@ const Table = useTable({
 	columns: [
 		{ type: 'selection' },
 		{ prop: 'imageUrl', label: '图片', width: 120 },
+		{ prop: 'mockupImageUrl', label: '效果图', width: 120 },
 		{ prop: 'itemNo', label: '编号', width: 70 },
 		{ prop: 'promptStatus', label: '提示词', width: 110 },
 		{ prop: 'status', label: '图片状态', width: 110 },
@@ -131,7 +144,7 @@ const Table = useTable({
 		{ prop: 'error', label: '错误', minWidth: 180, showOverflowTooltip: true },
 		{
 			type: 'op',
-			width: 280,
+			width: 390,
 			buttons({ scope }) {
 				return [
 					{
@@ -166,6 +179,14 @@ const Table = useTable({
 							scope.row.promptStatus !== 'approved',
 						onClick() {
 							cutoutItem(scope.row);
+						}
+					},
+					{
+						label: '生成效果图',
+						type: 'success',
+						hidden: !scope.row.imageUrl || scope.row.status === 'running',
+						onClick() {
+							generateMockupItem(scope.row);
 						}
 					}
 				];
@@ -323,6 +344,22 @@ function cutoutItem(row: any) {
 			.catch(err => {
 				ElMessage.error(err.message || '抠图失败');
 				refresh();
+			});
+	});
+}
+
+function generateMockupItem(row: any) {
+	ElMessageBox.confirm('将用当前印花图生成并覆盖 T 恤效果图，是否继续？', '提示', {
+		type: 'warning'
+	}).then(() => {
+		podGenerationService
+			.generateMockupItem({ id: row.id })
+			.then(() => {
+				ElMessage.success('效果图已生成');
+				refresh();
+			})
+			.catch(err => {
+				ElMessage.error(err.message || '效果图生成失败');
 			});
 	});
 }
