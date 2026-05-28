@@ -89,7 +89,7 @@
 						<el-input v-model="form.cutout.endpoint" placeholder="http://127.0.0.1:8000" />
 					</el-form-item>
 					<el-form-item label="抠图模型">
-						<el-input v-model="form.cutout.model" placeholder="birefnet.safetensors" />
+						<el-input v-model="form.cutout.model" placeholder="RMBG-2.0" />
 					</el-form-item>
 					<el-form-item label="抠图超时时间(ms)">
 						<el-input-number
@@ -97,6 +97,38 @@
 							:min="30000"
 							:max="600000"
 							:step="10000"
+						/>
+					</el-form-item>
+					<el-form-item label="黑色容差">
+						<el-input-number
+							v-model="form.cutout.blackThreshold"
+							:min="0"
+							:max="255"
+							:step="1"
+						/>
+					</el-form-item>
+					<el-form-item label="处理分辨率">
+						<el-input-number
+							v-model="form.cutout.processRes"
+							:min="256"
+							:max="2048"
+							:step="8"
+						/>
+					</el-form-item>
+					<el-form-item label="遮罩模糊">
+						<el-input-number
+							v-model="form.cutout.maskBlur"
+							:min="0"
+							:max="64"
+							:step="1"
+						/>
+					</el-form-item>
+					<el-form-item label="主体遮罩偏移">
+						<el-input-number
+							v-model="form.cutout.subjectMaskOffset"
+							:min="-64"
+							:max="64"
+							:step="1"
 						/>
 					</el-form-item>
 				</div>
@@ -143,8 +175,12 @@ const form = reactive({
 	cutout: {
 		enabled: true,
 		endpoint: 'http://127.0.0.1:8000',
-		model: 'birefnet.safetensors',
-		timeoutMs: 180000
+		model: 'RMBG-2.0',
+		timeoutMs: 180000,
+		blackThreshold: 34,
+		processRes: 1536,
+		maskBlur: 1,
+		subjectMaskOffset: -1
 	},
 	unifiedPrompt: ''
 });

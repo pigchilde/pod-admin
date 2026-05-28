@@ -160,7 +160,10 @@ const Table = useTable({
 					{
 						label: '抠图',
 						type: 'primary',
-						hidden: scope.row.status !== 'success' || !scope.row.imageUrl,
+						hidden:
+							!scope.row.imageUrl ||
+							scope.row.status === 'running' ||
+							scope.row.promptStatus !== 'approved',
 						onClick() {
 							cutoutItem(scope.row);
 						}
@@ -311,10 +314,16 @@ function cutoutItem(row: any) {
 	ElMessageBox.confirm('将对当前图片执行抠图，并覆盖为透明背景版本，是否继续？', '提示', {
 		type: 'warning'
 	}).then(() => {
-		podGenerationService.cutoutItem({ id: row.id }).then(() => {
-			ElMessage.success('抠图完成');
-			refresh();
-		});
+		podGenerationService
+			.cutoutItem({ id: row.id })
+			.then(() => {
+				ElMessage.success('抠图完成');
+				refresh();
+			})
+			.catch(err => {
+				ElMessage.error(err.message || '抠图失败');
+				refresh();
+			});
 	});
 }
 
