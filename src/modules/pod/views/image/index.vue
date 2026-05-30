@@ -85,7 +85,10 @@ const options = reactive({
 
 const itemService = {
 	page(data: any) {
-		return podGenerationService.items(data);
+		return podGenerationService.items({
+			...data,
+			order: 'latest'
+		});
 	}
 };
 
