@@ -85,6 +85,7 @@ const options = reactive({
 
 const itemService = {
 	page(data: any) {
+		// 图片管理是跨批次视角，默认把最新创建的图片任务放在最前面。
 		return podGenerationService.items({
 			...data,
 			order: 'latest'
@@ -158,6 +159,7 @@ function promptStatusType(status: string) {
 }
 
 function imagePreviewUrl(url: string, row: any) {
+	// 效果图会覆盖同名 JPG，展示时带版本参数避免浏览器继续使用旧缓存。
 	if (!url) {
 		return '';
 	}
@@ -170,6 +172,7 @@ function imagePreviewUrl(url: string, row: any) {
 }
 
 function generateMockupItem(row: any) {
+	// 只基于当前印花图重新合成 T 恤效果图，不触发生图或抠图。
 	ElMessageBox.confirm('将用当前印花图生成并覆盖 T 恤效果图，是否继续？', '提示', {
 		type: 'warning'
 	}).then(() => {

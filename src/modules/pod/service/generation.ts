@@ -6,6 +6,7 @@ class PodGenerationService extends BaseService {
 	}
 
 	createBatch(data: any) {
+		// 创建批次会同步调用 DeepSeek 生成提示词，耗时比普通 CRUD 更长。
 		return this.request({
 			url: '/createBatch',
 			method: 'POST',
@@ -47,6 +48,7 @@ class PodGenerationService extends BaseService {
 	}
 
 	cutoutItem(data: any) {
+		// 手动抠图只处理已有图片，不重新消耗图片模型额度。
 		return this.request({
 			url: '/cutoutItem',
 			method: 'POST',
@@ -56,6 +58,7 @@ class PodGenerationService extends BaseService {
 	}
 
 	generateMockupItem(data: any) {
+		// 效果图由本地 T.png 模板合成，重复点击会覆盖同名 JPG。
 		return this.request({
 			url: '/generateMockupItem',
 			method: 'POST',
@@ -96,6 +99,7 @@ class PodGenerationService extends BaseService {
 	}
 
 	items(data: any) {
+		// 批次详情和图片管理共用任务项分页接口，排序由调用方和后端共同决定。
 		return this.request({
 			url: '/items',
 			method: 'POST',

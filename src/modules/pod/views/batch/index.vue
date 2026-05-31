@@ -192,6 +192,7 @@ function openCreate() {
 		],
 		on: {
 			submit(data, { close, done }) {
+				// 创建批次阶段只生成并落库提示词，真正生图在详情页确认后再执行。
 				podGenerationService
 					.createBatch(data)
 					.then((res: any) => {

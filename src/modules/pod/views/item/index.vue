@@ -113,6 +113,7 @@ const canRun = computed(() => pendingImageCount.value > 0 && batch.value?.status
 
 const itemService = {
 	page(data: any) {
+		// 批次详情固定限定 batchId，后端会保持 001、002、003 的任务顺序。
 		return podGenerationService.items({
 			...data,
 			batchId: Number(route.params.id)
@@ -236,6 +237,7 @@ function promptStatusType(status: string) {
 }
 
 function imagePreviewUrl(url: string, row: any) {
+	// 图片和效果图都会覆盖同名文件，预览时加版本参数让用户立刻看到最新结果。
 	if (!url) {
 		return '';
 	}
@@ -344,6 +346,7 @@ function retrySelection() {
 }
 
 function cutoutItem(row: any) {
+	// 抠图只消费当前已落盘图片；ComfyUI 恢复后可对之前保留的原图继续处理。
 	ElMessageBox.confirm('将对当前图片执行抠图，并覆盖为透明背景版本，是否继续？', '提示', {
 		type: 'warning'
 	}).then(() => {
@@ -361,6 +364,7 @@ function cutoutItem(row: any) {
 }
 
 function generateMockupItem(row: any) {
+	// 单独生成效果图方便修正模板合成结果，重复执行会覆盖同名 JPG。
 	ElMessageBox.confirm('将用当前印花图生成并覆盖 T 恤效果图，是否继续？', '提示', {
 		type: 'warning'
 	}).then(() => {
