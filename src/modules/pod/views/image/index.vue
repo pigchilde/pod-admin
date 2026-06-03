@@ -10,6 +10,17 @@
 				:width="130"
 				placeholder="提示词状态"
 			/>
+			<el-date-picker
+				v-model="createDateRange"
+				type="daterange"
+				clearable
+				range-separator="至"
+				start-placeholder="创建开始"
+				end-placeholder="创建结束"
+				value-format="YYYY-MM-DD"
+				:style="{ width: '260px' }"
+				@change="refreshByDate"
+			/>
 			<cl-search-key placeholder="搜索 prompt / 文件名 / 标题" />
 		</cl-row>
 
@@ -50,6 +61,19 @@
 						{{ promptStatusText(scope.row.promptStatus) }}
 					</el-tag>
 				</template>
+
+				<template #column-filePath="{ scope }">
+					<el-tooltip
+						v-if="scope.row.filePath"
+						:content="fileDirectory(scope.row.filePath)"
+						placement="top"
+					>
+						<el-link type="primary" class="path-link" @click="copyFileDirectory(scope.row.filePath)">
+							{{ fileDirectory(scope.row.filePath) }}
+						</el-link>
+					</el-tooltip>
+					<span v-else class="empty-text">未生成</span>
+				</template>
 			</cl-table>
 		</cl-row>
 
@@ -66,8 +90,9 @@ defineOptions({
 });
 
 import { useCrud, useTable } from '@cool-vue/crud';
+import dayjs from 'dayjs';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { podGenerationService } from '../../service/generation';
 
 const options = reactive({
@@ -83,11 +108,14 @@ const options = reactive({
 	]
 });
 
+const createDateRange = ref<[string, string] | []>(todayRange());
+
 const itemService = {
 	page(data: any) {
 		// 图片管理是跨批次视角，默认把最新创建的图片任务放在最前面。
 		return podGenerationService.items({
 			...data,
+			...createTimeParams(),
 			order: 'latest'
 		});
 	}
@@ -110,9 +138,7 @@ const Table = useTable({
 		{ prop: 'itemNo', label: '编号', width: 80 },
 		{ prop: 'status', label: '图片状态', width: 110 },
 		{ prop: 'promptStatus', label: '提示词', width: 110 },
-		{ prop: 'seoFileName', label: 'SEO文件名', minWidth: 220, showOverflowTooltip: true },
 		{ prop: 'seoTitle', label: '标题', minWidth: 220, showOverflowTooltip: true },
-		{ prop: 'prompt', label: 'Prompt', minWidth: 380, showOverflowTooltip: true },
 		{ prop: 'filePath', label: '文件路径', minWidth: 260, showOverflowTooltip: true },
 		{ prop: 'createTime', label: '创建时间', width: 170, sortable: 'desc' },
 		{
@@ -171,6 +197,79 @@ function imagePreviewUrl(url: string, row: any) {
 	return `${url}${separator}v=${encodeURIComponent(version)}`;
 }
 
+function todayRange(): [string, string] {
+	const today = dayjs().format('YYYY-MM-DD');
+	return [today, today];
+}
+
+function createTimeParams() {
+	const [startDate, endDate] = createDateRange.value || [];
+	if (!startDate || !endDate) {
+		return {};
+	}
+	return {
+		createTimeStart: `${startDate} 00:00:00`,
+		createTimeEnd: `${endDate} 23:59:59`
+	};
+}
+
+function refreshByDate() {
+	// 日期范围只影响图片管理列表，清空日期后可查看全部历史图片。
+	Crud.value?.refresh({ page: 1 });
+}
+
+function fileDirectory(filePath: string) {
+	// 图片管理复制批次目录：先去掉文件名，再去掉 images/tshirt-effects 这类产物子目录。
+	const text = String(filePath || '').trim();
+	const index = Math.max(text.lastIndexOf('/'), text.lastIndexOf('\\'));
+	const directory = index > 0 ? text.slice(0, index) : text;
+	const separator = directory.includes('\\') ? '\\' : '/';
+	const parts = directory.split(/[\\/]+/);
+	const last = parts[parts.length - 1];
+
+	if (['images', 'tshirt-effects'].includes(last)) {
+		return directory.slice(0, directory.lastIndexOf(separator) + 1);
+	}
+
+	return directory.endsWith(separator) ? directory : `${directory}${separator}`;
+}
+
+function copyFileDirectory(filePath: string) {
+	const directory = fileDirectory(filePath);
+	if (!directory) {
+		ElMessage.warning('暂无可复制的文件路径');
+		return;
+	}
+
+	copyText(directory)
+		.then(() => {
+			ElMessage.success('文件路径已复制');
+		})
+		.catch(() => {
+			ElMessage.error('复制失败，请手动复制');
+		});
+}
+
+async function copyText(text: string) {
+	if (navigator.clipboard?.writeText) {
+		await navigator.clipboard.writeText(text);
+		return;
+	}
+
+	const textarea = document.createElement('textarea');
+	textarea.value = text;
+	textarea.setAttribute('readonly', 'readonly');
+	textarea.style.position = 'fixed';
+	textarea.style.left = '-9999px';
+	document.body.appendChild(textarea);
+	textarea.select();
+	const success = document.execCommand('copy');
+	document.body.removeChild(textarea);
+	if (!success) {
+		throw new Error('copy failed');
+	}
+}
+
 function generateMockupItem(row: any) {
 	// 只基于当前印花图重新合成 T 恤效果图，不触发生图或抠图。
 	ElMessageBox.confirm('将用当前印花图生成并覆盖 T 恤效果图，是否继续？', '提示', {
@@ -203,5 +302,21 @@ function generateMockupItem(row: any) {
 	justify-content: center;
 	color: var(--el-text-color-secondary);
 	background-color: var(--el-fill-color-light);
+}
+
+.empty-text {
+	color: var(--el-text-color-secondary);
+}
+
+.path-link {
+	max-width: 100%;
+
+	:deep(.el-link__inner) {
+		display: inline-block;
+		max-width: 100%;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 }
 </style>
