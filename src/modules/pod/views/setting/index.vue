@@ -43,9 +43,24 @@
 
 			<div class="section">
 				<div class="section__title">提示词生成配置</div>
+				<div class="preset-actions">
+					<el-button size="small" @click="applyPromptPreset('gpt')">套用 GPT 中转站</el-button>
+					<el-button size="small" @click="applyPromptPreset('claude')">套用 Claude 中转站</el-button>
+				</div>
 				<div class="grid">
 					<el-form-item label="Provider">
-						<el-input v-model="form.prompt.provider" placeholder="deepseek" />
+						<el-select v-model="form.prompt.provider" filterable allow-create>
+							<el-option label="GPT" value="gpt" />
+							<el-option label="Claude" value="claude" />
+							<el-option label="DeepSeek" value="deepseek" />
+							<el-option label="自定义" value="custom" />
+						</el-select>
+					</el-form-item>
+					<el-form-item label="协议类型">
+						<el-select v-model="form.prompt.protocol">
+							<el-option label="OpenAI Chat Completions" value="openai-chat" />
+							<el-option label="Anthropic Messages" value="anthropic-messages" />
+						</el-select>
 					</el-form-item>
 					<el-form-item label="接口地址">
 						<el-input v-model="form.prompt.endpoint" />
@@ -56,13 +71,30 @@
 					<el-form-item label="提示词模型">
 						<el-input v-model="form.prompt.model" placeholder="deepseek-v4-pro" />
 					</el-form-item>
+					<el-form-item label="Temperature">
+						<el-input-number
+							v-model="form.prompt.temperature"
+							:min="0"
+							:max="2"
+							:step="0.1"
+							:precision="1"
+						/>
+					</el-form-item>
+					<el-form-item label="Max Tokens">
+						<el-input-number
+							v-model="form.prompt.maxTokens"
+							:min="1024"
+							:max="64000"
+							:step="1024"
+						/>
+					</el-form-item>
 				</div>
 				<el-form-item label="System Prompt">
 					<el-input
 						v-model="form.prompt.systemPrompt"
 						type="textarea"
 						:rows="5"
-						placeholder="用于约束 DeepSeek 生成提示词时的系统角色指令。"
+						placeholder="用于约束提示词模型生成内容时的系统角色指令。"
 					/>
 				</el-form-item>
 			</div>
@@ -167,9 +199,12 @@ const form = reactive({
 	},
 	prompt: {
 		provider: '',
+		protocol: 'openai-chat',
 		endpoint: '',
 		apiKey: '',
 		model: '',
+		temperature: 0.7,
+		maxTokens: 8192,
 		systemPrompt: ''
 	},
 	cutout: {
@@ -190,6 +225,27 @@ function setForm(data: any) {
 	Object.assign(form.prompt, data?.prompt || {});
 	Object.assign(form.cutout, data?.cutout || {});
 	form.unifiedPrompt = data?.unifiedPrompt || '';
+}
+
+function applyPromptPreset(type: 'gpt' | 'claude') {
+	if (type === 'gpt') {
+		Object.assign(form.prompt, {
+			provider: 'gpt',
+			protocol: 'openai-chat',
+			endpoint: 'https://api.avemujica.moe/v1/chat/completions',
+			model: 'gpt-5.5',
+			temperature: 0.7
+		});
+		return;
+	}
+
+	Object.assign(form.prompt, {
+		provider: 'claude',
+		protocol: 'anthropic-messages',
+		endpoint: 'https://api.avemujica.moe/v1/messages',
+		model: 'claude-opus-4-8',
+		maxTokens: 8192
+	});
 }
 
 function load() {
@@ -245,6 +301,12 @@ onMounted(() => {
 		font-weight: 600;
 		color: var(--el-text-color-primary);
 	}
+}
+
+.preset-actions {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
 }
 
 .grid {
