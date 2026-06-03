@@ -188,15 +188,27 @@ function openCreate() {
 					name: 'el-input-number',
 					props: { min: 0, max: 5 }
 				}
+			},
+			{
+				label: '自动生图',
+				prop: 'autoRun',
+				value: true,
+				component: {
+					name: 'el-switch',
+					props: {
+						activeText: '提示词生成后直接生图',
+						inactiveText: '先审批提示词'
+					}
+				}
 			}
 		],
 		on: {
 			submit(data, { close, done }) {
-				// 创建批次阶段只生成并落库提示词，真正生图在详情页确认后再执行。
+				// 可按批次决定是否跳过人工审批，直接进入图片生成队列。
 				podGenerationService
 					.createBatch(data)
 					.then((res: any) => {
-						ElMessage.success('批次已创建，提示词已生成');
+						ElMessage.success(data.autoRun === false ? '批次已创建，提示词已生成' : '批次已创建，正在生成图片');
 						done();
 						close();
 						Form.value?.close();

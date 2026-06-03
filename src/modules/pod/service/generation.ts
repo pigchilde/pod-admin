@@ -6,7 +6,7 @@ class PodGenerationService extends BaseService {
 	}
 
 	createBatch(data: any) {
-		// 创建批次会同步调用 DeepSeek 生成提示词，耗时比普通 CRUD 更长。
+		// 创建批次会同步生成提示词；如开启自动生图，后端会异步继续生成图片。
 		return this.request({
 			url: '/createBatch',
 			method: 'POST',
