@@ -157,7 +157,7 @@ const props = defineProps({
 		>,
 		default: 'success'
 	},
-	icon: String,
+	icon: [String, Object],
 	disabled: Boolean,
 	accept: {
 		type: String,

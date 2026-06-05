@@ -4,7 +4,28 @@
 			<cl-refresh-btn />
 
 			<el-button type="primary" :icon="Plus" @click="openCreate">创建批次</el-button>
-			<cl-import-btn type="success" :tips="importTips" :on-submit="onImportSubmit" />
+			<cl-import-btn
+				type="success"
+				:icon="Upload"
+				:tips="importTips"
+				:on-submit="onImportSubmit"
+			/>
+			<el-date-picker
+				v-model="exportDateRange"
+				type="daterange"
+				value-format="YYYY-MM-DD"
+				start-placeholder="开始日期"
+				end-placeholder="结束日期"
+				:clearable="true"
+			/>
+			<el-button
+				type="success"
+				:icon="Download"
+				:loading="exporting"
+				@click="exportBatchExcel"
+			>
+				导出
+			</el-button>
 
 			<cl-flex1 />
 
@@ -54,15 +75,20 @@ defineOptions({
 });
 
 import { useCrud, useForm, useTable } from '@cool-vue/crud';
-import { Plus } from '@element-plus/icons-vue';
+import { Download, Plus, Upload } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { reactive } from 'vue';
+import { reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { podGenerationService } from '../../service/generation';
+import dayjs from 'dayjs';
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
 
 const router = useRouter();
 const Form = useForm();
 const importTips = '请上传包含「主题」「数量」两列的 Excel，每一行会自动创建一个批次并开始生图';
+const exportDateRange = ref<string[]>([]);
+const exporting = ref(false);
 
 const options = reactive({
 	status: [
@@ -272,6 +298,70 @@ function onImportSubmit(data: { list: any[] }, { done, close }: any) {
 		.finally(() => {
 			done();
 		});
+}
+
+async function exportBatchExcel() {
+	try {
+		exporting.value = true;
+		const [start, end] = exportDateRange.value || [];
+		const res: any = await podGenerationService.exportBatches({
+			createTimeStart: start ? `${start} 00:00:00` : '',
+			createTimeEnd: end ? `${end} 23:59:59` : ''
+		});
+		const batches = res?.batches || [];
+		const items = res?.items || [];
+
+		if (!batches.length) {
+			return ElMessage.warning('当前日期范围内没有可导出的批次');
+		}
+
+		const batchMap = new Map(batches.map((item: any) => [item.id, item]));
+		const mainRows = batches.map((item: any) => ({
+			主题: item.topic,
+			数量: item.count
+		}));
+		const detailRows = items.map((item: any) => {
+			const batch: any = batchMap.get(item.batchId) || {};
+			return {
+				主题: batch.topic || '',
+				标题: item.seoTitle || item.seoFileName || '',
+				Prompt: item.prompt || ''
+			};
+		});
+
+		const workbook = XLSX.utils.book_new();
+		XLSX.utils.book_append_sheet(
+			workbook,
+			XLSX.utils.json_to_sheet(mainRows, {
+				header: ['主题', '数量']
+			}),
+			'主表'
+		);
+		XLSX.utils.book_append_sheet(
+			workbook,
+			XLSX.utils.json_to_sheet(detailRows, {
+				header: ['主题', '标题', 'Prompt']
+			}),
+			'附表'
+		);
+
+		const buffer = XLSX.write(workbook, {
+			bookType: 'xlsx',
+			type: 'array'
+		});
+		const rangeText = start && end ? `${start}_${end}` : dayjs().format('YYYY-MM-DD');
+		saveAs(
+			new Blob([buffer], {
+				type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+			}),
+			`POD批次导出_${rangeText}.xlsx`
+		);
+		ElMessage.success('导出成功');
+	} catch (err: any) {
+		ElMessage.error(err.message);
+	} finally {
+		exporting.value = false;
+	}
 }
 
 function goDetail(row: any) {

@@ -25,6 +25,14 @@ class PodGenerationService extends BaseService {
 		});
 	}
 
+	exportBatches(data: any) {
+		return this.request({
+			url: '/exportBatches',
+			method: 'POST',
+			data
+		});
+	}
+
 	runBatch(data: any) {
 		return this.request({
 			url: '/runBatch',
