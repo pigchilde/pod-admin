@@ -15,6 +15,16 @@ class PodGenerationService extends BaseService {
 		});
 	}
 
+	createBatches(data: any) {
+		// 表格导入：每一行创建一个独立批次，并沿用后端自动生图流程。
+		return this.request({
+			url: '/createBatches',
+			method: 'POST',
+			data,
+			timeout: 180000
+		});
+	}
+
 	runBatch(data: any) {
 		return this.request({
 			url: '/runBatch',

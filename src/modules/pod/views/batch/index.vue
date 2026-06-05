@@ -4,6 +4,7 @@
 			<cl-refresh-btn />
 
 			<el-button type="primary" :icon="Plus" @click="openCreate">创建批次</el-button>
+			<cl-import-btn type="success" :tips="importTips" :on-submit="onImportSubmit" />
 
 			<cl-flex1 />
 
@@ -25,7 +26,8 @@
 				</template>
 
 				<template #column-promptProgress="{ scope }">
-					{{ scope.row.approvedPromptCount || 0 }} / {{ scope.row.promptCount || scope.row.count }}
+					{{ scope.row.approvedPromptCount || 0 }} /
+					{{ scope.row.promptCount || scope.row.count }}
 				</template>
 
 				<template #column-imageProgress="{ scope }">
@@ -60,6 +62,7 @@ import { podGenerationService } from '../../service/generation';
 
 const router = useRouter();
 const Form = useForm();
+const importTips = '请上传包含「主题」「数量」两列的 Excel，每一行会自动创建一个批次并开始生图';
 
 const options = reactive({
 	status: [
@@ -208,7 +211,11 @@ function openCreate() {
 				podGenerationService
 					.createBatch(data)
 					.then((res: any) => {
-						ElMessage.success(data.autoRun === false ? '批次已创建，提示词已生成' : '批次已创建，正在生成图片');
+						ElMessage.success(
+							data.autoRun === false
+								? '批次已创建，提示词已生成'
+								: '批次已创建，正在生成图片'
+						);
 						done();
 						close();
 						Form.value?.close();
@@ -224,6 +231,47 @@ function openCreate() {
 			}
 		}
 	});
+}
+
+function onImportSubmit(data: { list: any[] }, { done, close }: any) {
+	const rows = (data.list || []).filter(row => {
+		return String(row?.主题 || row?.topic || '').trim();
+	});
+
+	if (!rows.length) {
+		done();
+		return ElMessage.error('表格中没有可创建的主题');
+	}
+
+	podGenerationService
+		.createBatches({
+			rows,
+			autoRun: true
+		})
+		.then((res: any) => {
+			const failed = res?.failed || 0;
+			const success = res?.success || 0;
+			if (failed) {
+				ElMessage.warning(`已创建 ${success} 个批次，${failed} 行失败`);
+				const details = (res?.results || [])
+					.filter((item: any) => item.status === 'failed')
+					.map((item: any) => `第 ${item.rowNo} 行：${item.error}`)
+					.join('\n');
+				ElMessageBox.alert(details, '导入失败明细', {
+					type: 'warning'
+				});
+			} else {
+				ElMessage.success(`已创建 ${success} 个批次，正在生成图片`);
+			}
+			close();
+			Crud.value?.refresh();
+		})
+		.catch(err => {
+			ElMessage.error(err.message);
+		})
+		.finally(() => {
+			done();
+		});
 }
 
 function goDetail(row: any) {
