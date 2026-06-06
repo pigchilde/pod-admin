@@ -8,6 +8,8 @@
 				type="success"
 				:icon="Upload"
 				:tips="importTips"
+				:row-filter="isImportRowValid"
+				first-sheet-only
 				:on-submit="onImportSubmit"
 			/>
 			<el-date-picker
@@ -113,6 +115,7 @@ const Crud = useCrud(
 const Table = useTable({
 	contextMenu: ['refresh'],
 	columns: [
+		{ prop: 'id', label: 'ID', width: 90 },
 		{ prop: 'batchNo', label: '批次号', minWidth: 220, showOverflowTooltip: true },
 		{ prop: 'topic', label: '主题', minWidth: 220, showOverflowTooltip: true },
 		{ prop: 'status', label: '状态', width: 130 },
@@ -260,13 +263,11 @@ function openCreate() {
 }
 
 function onImportSubmit(data: { list: any[] }, { done, close }: any) {
-	const rows = (data.list || []).filter(row => {
-		return String(row?.主题 || row?.topic || '').trim();
-	});
+	const rows = (data.list || []).filter(isImportRowValid);
 
 	if (!rows.length) {
 		done();
-		return ElMessage.error('表格中没有可创建的主题');
+		return ElMessage.error('表格中没有可创建的主题和数量');
 	}
 
 	podGenerationService
@@ -298,6 +299,12 @@ function onImportSubmit(data: { list: any[] }, { done, close }: any) {
 		.finally(() => {
 			done();
 		});
+}
+
+function isImportRowValid(row: any) {
+	const topic = String(row?.主题 || row?.topic || row?.生成主题 || '').trim();
+	const count = String(row?.数量 || row?.count || row?.生成数量 || '').trim();
+	return Boolean(topic && count);
 }
 
 async function exportBatchExcel() {
