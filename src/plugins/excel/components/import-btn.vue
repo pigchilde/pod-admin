@@ -159,6 +159,8 @@ const props = defineProps({
 	},
 	icon: [String, Object],
 	disabled: Boolean,
+	rowFilter: Function,
+	firstSheetOnly: Boolean,
 	accept: {
 		type: String,
 		default:
@@ -275,10 +277,13 @@ function open() {
 				}
 
 				if (props.onSubmit) {
-					props.onSubmit({
-						...upload,
-						..._
-					}, { done, close });
+					props.onSubmit(
+						{
+							...upload,
+							..._
+						},
+						{ done, close }
+					);
 				} else {
 					ElMessage.error(t('[cl-import-btn] onSubmit is required'));
 					done();
@@ -307,7 +312,10 @@ function onUpload(raw: File, _: any, { next }: any) {
 		const workbook = XLSX.read(data, { type: 'binary', raw: ext == 'csv' });
 
 		let json: any[] = [];
-		for (const sheet in workbook.Sheets) {
+		const sheetNames = props.firstSheetOnly
+			? workbook.SheetNames.slice(0, 1)
+			: workbook.SheetNames;
+		for (const sheet of sheetNames) {
 			if (has(workbook.Sheets, sheet)) {
 				json = json.concat(
 					XLSX.utils.sheet_to_json(workbook.Sheets[sheet], {
@@ -319,7 +327,9 @@ function onUpload(raw: File, _: any, { next }: any) {
 			}
 		}
 
-		upload.list = json.map((e, i) => {
+		const filtered = props.rowFilter ? json.filter((e, i) => props.rowFilter?.(e, i)) : json;
+
+		upload.list = filtered.map((e, i) => {
 			return {
 				...e,
 				_index: i
@@ -340,7 +350,7 @@ function onUpload(raw: File, _: any, { next }: any) {
 			}
 		}
 
-		emit('change', json);
+		emit('change', filtered);
 	};
 
 	if (ext == 'csv') {
