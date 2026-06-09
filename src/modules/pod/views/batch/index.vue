@@ -206,10 +206,10 @@ function openCreate() {
 			{
 				label: '并发数',
 				prop: 'concurrency',
-				value: 10,
+				value: 3,
 				component: {
 					name: 'el-input-number',
-					props: { min: 1, max: 100 }
+					props: { min: 1, max: 9 }
 				}
 			},
 			{
