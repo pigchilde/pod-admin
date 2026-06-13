@@ -32,6 +32,15 @@ export default (): ModuleConfig => {
 				component: () => import('./views/provider/index.vue')
 			},
 			{
+				// 独立抠图工具：上传多张图片后统一输出到 generated/cutout。
+				path: '/pod/cutout',
+				meta: {
+					label: '抠图模块',
+					icon: 'icon-pic'
+				},
+				component: () => import('./views/cutout/index.vue')
+			},
+			{
 				// 模块设置集中维护生图、提示词、抠图等运行期参数。
 				path: '/pod/setting',
 				meta: {
