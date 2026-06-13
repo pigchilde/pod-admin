@@ -12,17 +12,19 @@
 					<el-form-item label="输出目录">
 						<el-input v-model="form.generation.outputDir" placeholder="../generated/temu-tshirt" />
 					</el-form-item>
-					<el-form-item label="Provider">
-						<el-input v-model="form.generation.provider" placeholder="rightcodes" />
-					</el-form-item>
-					<el-form-item label="接口地址">
-						<el-input v-model="form.generation.endpoint" />
-					</el-form-item>
-					<el-form-item label="API Key">
-						<el-input v-model="form.generation.apiKey" show-password />
-					</el-form-item>
-					<el-form-item label="图片模型">
-						<el-input v-model="form.generation.model" placeholder="gpt-image-2" />
+					<el-form-item label="图片生成供应商">
+						<el-select
+							v-model="form.generation.providerId"
+							filterable
+							placeholder="请选择图片生成供应商"
+						>
+							<el-option
+								v-for="item in imageProviderOptions"
+								:key="item.id"
+								:label="providerOptionLabel(item)"
+								:value="item.id"
+							/>
+						</el-select>
 					</el-form-item>
 					<el-form-item label="生图尺寸">
 						<el-input v-model="form.generation.size" placeholder="1024x1024" />
@@ -43,33 +45,20 @@
 
 			<div class="section">
 				<div class="section__title">提示词生成配置</div>
-				<div class="preset-actions">
-					<el-button size="small" @click="applyPromptPreset('gpt')">套用 GPT 中转站</el-button>
-					<el-button size="small" @click="applyPromptPreset('claude')">套用 Claude 中转站</el-button>
-				</div>
 				<div class="grid">
-					<el-form-item label="Provider">
-						<el-select v-model="form.prompt.provider" filterable allow-create>
-							<el-option label="GPT" value="gpt" />
-							<el-option label="Claude" value="claude" />
-							<el-option label="DeepSeek" value="deepseek" />
-							<el-option label="自定义" value="custom" />
+					<el-form-item label="提示词生成供应商">
+						<el-select
+							v-model="form.prompt.providerId"
+							filterable
+							placeholder="请选择提示词生成供应商"
+						>
+							<el-option
+								v-for="item in promptProviderOptions"
+								:key="item.id"
+								:label="providerOptionLabel(item)"
+								:value="item.id"
+							/>
 						</el-select>
-					</el-form-item>
-					<el-form-item label="协议类型">
-						<el-select v-model="form.prompt.protocol">
-							<el-option label="OpenAI Chat Completions" value="openai-chat" />
-							<el-option label="Anthropic Messages" value="anthropic-messages" />
-						</el-select>
-					</el-form-item>
-					<el-form-item label="接口地址">
-						<el-input v-model="form.prompt.endpoint" />
-					</el-form-item>
-					<el-form-item label="API Key">
-						<el-input v-model="form.prompt.apiKey" show-password />
-					</el-form-item>
-					<el-form-item label="提示词模型">
-						<el-input v-model="form.prompt.model" placeholder="deepseek-v4-pro" />
 					</el-form-item>
 					<el-form-item label="Temperature">
 						<el-input-number
@@ -182,27 +171,30 @@ defineOptions({
 import { ElMessage } from 'element-plus';
 import { onMounted, reactive, ref } from 'vue';
 import { podSettingService } from '../../service/setting';
+import { podProviderService } from '../../service/provider';
+
+interface ProviderOption {
+	id: number;
+	name: string;
+	code: string;
+	protocol: string;
+}
 
 const loading = ref(false);
 const saving = ref(false);
+const imageProviderOptions = ref<ProviderOption[]>([]);
+const promptProviderOptions = ref<ProviderOption[]>([]);
 
 const form = reactive({
 	generation: {
 		outputDir: '',
-		provider: '',
+		providerId: undefined as number | undefined,
 		timeoutMs: 180000,
-		endpoint: '',
-		apiKey: '',
-		model: '',
 		size: '1024x1024',
 		outputSize: '2048x2048'
 	},
 	prompt: {
-		provider: '',
-		protocol: 'openai-chat',
-		endpoint: '',
-		apiKey: '',
-		model: '',
+		providerId: undefined as number | undefined,
 		temperature: 0.7,
 		maxTokens: 8192,
 		systemPrompt: ''
@@ -221,41 +213,47 @@ const form = reactive({
 });
 
 function setForm(data: any) {
-	Object.assign(form.generation, data?.generation || {});
-	Object.assign(form.prompt, data?.prompt || {});
+	Object.assign(form.generation, {
+		outputDir: data?.generation?.outputDir || '',
+		providerId: data?.generation?.providerId,
+		timeoutMs: data?.generation?.timeoutMs || 180000,
+		size: data?.generation?.size || '1024x1024',
+		outputSize: data?.generation?.outputSize || '2048x2048'
+	});
+	Object.assign(form.prompt, {
+		providerId: data?.prompt?.providerId,
+		temperature: data?.prompt?.temperature ?? 0.7,
+		maxTokens: data?.prompt?.maxTokens || 8192,
+		systemPrompt: data?.prompt?.systemPrompt || ''
+	});
 	Object.assign(form.cutout, data?.cutout || {});
 	form.unifiedPrompt = data?.unifiedPrompt || '';
 }
 
-function applyPromptPreset(type: 'gpt' | 'claude') {
-	if (type === 'gpt') {
-		Object.assign(form.prompt, {
-			provider: 'gpt',
-			protocol: 'openai-chat',
-			endpoint: 'https://api.avemujica.moe/v1/chat/completions',
-			model: 'gpt-5.5',
-			temperature: 0.7
-		});
-		return;
-	}
-
-	Object.assign(form.prompt, {
-		provider: 'claude',
-		protocol: 'anthropic-messages',
-		endpoint: 'https://api.avemujica.moe/v1/messages',
-		model: 'claude-opus-4-8',
-		maxTokens: 8192
-	});
+function providerOptionLabel(item: ProviderOption) {
+	return `${item.name}（${item.code} / ${item.protocol}）`;
 }
 
-function load() {
+async function loadProviderOptions() {
+	const [imageProviders, promptProviders] = await Promise.all([
+		podProviderService.options({ type: 'image' }),
+		podProviderService.options({ type: 'prompt' })
+	]);
+	imageProviderOptions.value = ((imageProviders as any)?.data || imageProviders || []) as ProviderOption[];
+	promptProviderOptions.value = ((promptProviders as any)?.data ||
+		promptProviders ||
+		[]) as ProviderOption[];
+}
+
+async function load() {
 	loading.value = true;
-	podSettingService
-		.info()
-		.then(setForm)
-		.finally(() => {
-			loading.value = false;
-		});
+	try {
+		await loadProviderOptions();
+		const data = await podSettingService.info();
+		setForm(data);
+	} finally {
+		loading.value = false;
+	}
 }
 
 function save() {
@@ -301,12 +299,6 @@ onMounted(() => {
 		font-weight: 600;
 		color: var(--el-text-color-primary);
 	}
-}
-
-.preset-actions {
-	display: flex;
-	gap: 8px;
-	margin-bottom: 12px;
 }
 
 .grid {

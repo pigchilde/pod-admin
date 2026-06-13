@@ -23,6 +23,15 @@ export default (): ModuleConfig => {
 				component: () => import('./views/image/index.vue')
 			},
 			{
+				// 供应商配置拆分图片生成和提示词生成接口参数。
+				path: '/pod/provider',
+				meta: {
+					label: '供应商配置',
+					icon: 'icon-set'
+				},
+				component: () => import('./views/provider/index.vue')
+			},
+			{
 				// 模块设置集中维护生图、提示词、抠图等运行期参数。
 				path: '/pod/setting',
 				meta: {
