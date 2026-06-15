@@ -130,6 +130,10 @@ const Crud = useCrud(
 	}
 );
 
+const isGenerating = (row: any) => row.status === 'running';
+const isCutoutRunning = (row: any) => row.status === 'cutout_running';
+const isBusy = (row: any) => isGenerating(row) || isCutoutRunning(row);
+
 const Table = useTable({
 	contextMenu: ['refresh', 'check'],
 	columns: [
@@ -166,7 +170,7 @@ const Table = useTable({
 					{
 						label: '生图',
 						type: 'warning',
-						hidden: scope.row.status === 'running',
+						hidden: isBusy(scope.row),
 						onClick() {
 							retryItem(scope.row);
 						}
@@ -176,7 +180,7 @@ const Table = useTable({
 						type: 'primary',
 						hidden:
 							!scope.row.imageUrl ||
-							scope.row.status === 'running' ||
+							isBusy(scope.row) ||
 							scope.row.promptStatus !== 'approved',
 						onClick() {
 							cutoutItem(scope.row);
@@ -185,7 +189,7 @@ const Table = useTable({
 					{
 						label: '生成效果图',
 						type: 'success',
-						hidden: !scope.row.imageUrl || scope.row.status === 'running',
+						hidden: !scope.row.imageUrl || isBusy(scope.row),
 						onClick() {
 							generateMockupItem(scope.row);
 						}
@@ -203,7 +207,7 @@ const selectedDraftRows = computed(() =>
 );
 
 const selectedRetryRows = computed(() =>
-	selectedRows.value.filter((row: any) => row.promptStatus === 'approved' && row.status !== 'running')
+	selectedRows.value.filter((row: any) => row.promptStatus === 'approved' && !isBusy(row))
 );
 
 const canApproveSelection = computed(() => selectedDraftRows.value.length > 0);
@@ -213,13 +217,13 @@ const canRetrySelection = computed(
 );
 
 function statusText(status: string) {
-	return ({ pending: '待生成', running: '生成中', success: '成功', failed: '失败' } as any)[
+	return ({ pending: '待生成', running: '生成中', cutout_running: '抠图中', success: '成功', failed: '失败' } as any)[
 		status || 'pending'
 	];
 }
 
 function statusType(status: string) {
-	return ({ pending: 'info', running: 'primary', success: 'success', failed: 'danger' } as any)[
+	return ({ pending: 'info', running: 'primary', cutout_running: 'primary', success: 'success', failed: 'danger' } as any)[
 		status || 'pending'
 	];
 }

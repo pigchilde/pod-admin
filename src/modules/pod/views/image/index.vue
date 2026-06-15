@@ -98,6 +98,8 @@ import { podGenerationService } from '../../service/generation';
 const options = reactive({
 	status: [
 		{ label: '待生成', value: 'pending', type: 'info' },
+		{ label: '生成中', value: 'running', type: 'primary' },
+		{ label: '抠图中', value: 'cutout_running', type: 'primary' },
 		{ label: '成功', value: 'success', type: 'success' },
 		{ label: '失败', value: 'failed', type: 'danger' }
 	],
@@ -149,7 +151,7 @@ const Table = useTable({
 					{
 						label: '生成效果图',
 						type: 'success',
-						hidden: !scope.row.imageUrl || scope.row.status === 'running',
+						hidden: !scope.row.imageUrl || scope.row.status === 'running' || scope.row.status === 'cutout_running',
 						onClick() {
 							generateMockupItem(scope.row);
 						}
@@ -161,13 +163,13 @@ const Table = useTable({
 });
 
 function imageStatusText(status: string) {
-	return ({ pending: '待生成', running: '生成中', success: '成功', failed: '失败' } as any)[
+	return ({ pending: '待生成', running: '生成中', cutout_running: '抠图中', success: '成功', failed: '失败' } as any)[
 		status || 'pending'
 	];
 }
 
 function imageStatusType(status: string) {
-	return ({ pending: 'info', running: 'primary', success: 'success', failed: 'danger' } as any)[
+	return ({ pending: 'info', running: 'primary', cutout_running: 'primary', success: 'success', failed: 'danger' } as any)[
 		status || 'pending'
 	];
 }
