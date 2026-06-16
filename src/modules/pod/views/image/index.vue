@@ -94,6 +94,7 @@ import dayjs from 'dayjs';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { reactive, ref } from 'vue';
 import { podGenerationService } from '../../service/generation';
+import { imagePreviewUrl, imageStatusText, imageStatusType, promptStatusText, promptStatusType } from '../../utils/display';
 
 const options = reactive({
 	status: [
@@ -162,42 +163,6 @@ const Table = useTable({
 	]
 });
 
-function imageStatusText(status: string) {
-	return ({ pending: '待生成', running: '生成中', cutout_running: '抠图中', success: '成功', failed: '失败' } as any)[
-		status || 'pending'
-	];
-}
-
-function imageStatusType(status: string) {
-	return ({ pending: 'info', running: 'primary', cutout_running: 'primary', success: 'success', failed: 'danger' } as any)[
-		status || 'pending'
-	];
-}
-
-function promptStatusText(status: string) {
-	return ({ draft: '待确认', approved: '已确认', rejected: '已驳回' } as any)[
-		status || 'draft'
-	];
-}
-
-function promptStatusType(status: string) {
-	return ({ draft: 'warning', approved: 'success', rejected: 'danger' } as any)[
-		status || 'draft'
-	];
-}
-
-function imagePreviewUrl(url: string, row: any) {
-	// 效果图会覆盖同名 JPG，展示时带版本参数避免浏览器继续使用旧缓存。
-	if (!url) {
-		return '';
-	}
-	if (url.includes('v=')) {
-		return url;
-	}
-	const version = row.updateTime || row.createTime || Date.now();
-	const separator = url.includes('?') ? '&' : '?';
-	return `${url}${separator}v=${encodeURIComponent(version)}`;
-}
 
 function todayRange(): [string, string] {
 	const today = dayjs().format('YYYY-MM-DD');
@@ -205,18 +170,14 @@ function todayRange(): [string, string] {
 }
 
 function createTimeParams() {
-	const [startDate, endDate] = createDateRange.value || [];
-	if (!startDate || !endDate) {
-		return {};
-	}
+	const [start, end] = createDateRange.value || [];
 	return {
-		createTimeStart: `${startDate} 00:00:00`,
-		createTimeEnd: `${endDate} 23:59:59`
+		createTimeStart: start ? `${start} 00:00:00` : '',
+		createTimeEnd: end ? `${end} 23:59:59` : ''
 	};
 }
 
 function refreshByDate() {
-	// 日期范围只影响图片管理列表，清空日期后可查看全部历史图片。
 	Crud.value?.refresh({ page: 1 });
 }
 
