@@ -5,26 +5,29 @@
 			<cl-refresh-btn />
 			<el-button
 				type="primary"
-				:disabled="!canApproveSelection"
+				:loading="actionLoading"
+				:disabled="actionLoading || !canApproveSelection"
 				@click="approveSelection"
 			>
 				确认提示词
 			</el-button>
 			<el-button
 				type="success"
-				:disabled="!canRun"
+				:loading="actionLoading"
+				:disabled="actionLoading || !canRun"
 				@click="run"
 			>
 				生成待生成
 			</el-button>
 			<el-button
 				type="warning"
-				:disabled="!canRetrySelection"
+				:loading="actionLoading"
+				:disabled="actionLoading || !canRetrySelection"
 				@click="retrySelection"
 			>
 				重生成选中
 			</el-button>
-			<el-button type="warning" :disabled="!batch?.failedCount" @click="retryFailed">
+			<el-button type="warning" :loading="actionLoading" :disabled="actionLoading || !batch?.failedCount" @click="retryFailed">
 				重试失败
 			</el-button>
 			<cl-flex1 />
@@ -67,8 +70,8 @@
 				</template>
 
 				<template #column-status="{ scope }">
-					<el-tag :type="statusType(scope.row.status)" effect="plain">
-						{{ statusText(scope.row.status) }}
+					<el-tag :type="imageStatusType(scope.row.status)" effect="plain">
+						{{ imageStatusText(scope.row.status) }}
 					</el-tag>
 				</template>
 			</cl-table>
@@ -94,11 +97,13 @@ import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, onActivated, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { podGenerationService } from '../../service/generation';
+import { imagePreviewUrl, imageStatusText, imageStatusType, promptStatusText, promptStatusType } from '../../utils/display';
 
 const route = useRoute();
 const router = useRouter();
 const Form = useForm();
 const batch = ref<any>();
+const actionLoading = ref(false);
 
 const pendingImageCount = computed(() =>
 	Math.max(
@@ -155,6 +160,7 @@ const Table = useTable({
 					{
 						label: '编辑',
 						type: 'primary',
+						disabled: actionLoading.value,
 						onClick() {
 							openPrompt(scope.row);
 						}
@@ -162,6 +168,7 @@ const Table = useTable({
 					{
 						label: '确认',
 						type: 'success',
+						disabled: actionLoading.value,
 						hidden: scope.row.promptStatus === 'approved',
 						onClick() {
 							approve([scope.row]);
@@ -170,6 +177,7 @@ const Table = useTable({
 					{
 						label: '生图',
 						type: 'warning',
+						disabled: actionLoading.value,
 						hidden: isBusy(scope.row),
 						onClick() {
 							retryItem(scope.row);
@@ -178,6 +186,7 @@ const Table = useTable({
 					{
 						label: '抠图',
 						type: 'primary',
+						disabled: actionLoading.value,
 						hidden:
 							!scope.row.imageUrl ||
 							isBusy(scope.row) ||
@@ -189,6 +198,7 @@ const Table = useTable({
 					{
 						label: '生成效果图',
 						type: 'success',
+						disabled: actionLoading.value,
 						hidden: !scope.row.imageUrl || isBusy(scope.row),
 						onClick() {
 							generateMockupItem(scope.row);
@@ -216,42 +226,6 @@ const canRetrySelection = computed(
 	() => selectedRetryRows.value.length > 0 && batch.value?.status !== 'image_generating'
 );
 
-function statusText(status: string) {
-	return ({ pending: '待生成', running: '生成中', cutout_running: '抠图中', success: '成功', failed: '失败' } as any)[
-		status || 'pending'
-	];
-}
-
-function statusType(status: string) {
-	return ({ pending: 'info', running: 'primary', cutout_running: 'primary', success: 'success', failed: 'danger' } as any)[
-		status || 'pending'
-	];
-}
-
-function promptStatusText(status: string) {
-	return ({ draft: '待确认', approved: '已确认', rejected: '已驳回' } as any)[
-		status || 'draft'
-	];
-}
-
-function promptStatusType(status: string) {
-	return ({ draft: 'warning', approved: 'success', rejected: 'danger' } as any)[
-		status || 'draft'
-	];
-}
-
-function imagePreviewUrl(url: string, row: any) {
-	// 图片和效果图都会覆盖同名文件，预览时加版本参数让用户立刻看到最新结果。
-	if (!url) {
-		return '';
-	}
-	if (url.includes('v=')) {
-		return url;
-	}
-	const version = row.updateTime || row.createTime || Date.now();
-	const separator = url.includes('?') ? '&' : '?';
-	return `${url}${separator}v=${encodeURIComponent(version)}`;
-}
 
 function refresh() {
 	const id = Number(route.params.id);
@@ -303,85 +277,103 @@ function approveSelection() {
 	approve(selectedDraftRows.value);
 }
 
-function approve(rows: any[]) {
-	podGenerationService.approvePrompts({ ids: rows.map(e => e.id) }).then(() => {
-		ElMessage.success('提示词已确认');
+async function runAction<T>(worker: () => Promise<T>, successMessage: string, fallbackError = '操作失败') {
+	if (actionLoading.value) {
+		return;
+	}
+	try {
+		actionLoading.value = true;
+		await worker();
+		ElMessage.success(successMessage);
 		refresh();
-	});
+	} catch (err: any) {
+		if (err !== 'cancel') {
+			ElMessage.error(err?.message || fallbackError);
+		}
+	} finally {
+		actionLoading.value = false;
+	}
+}
+
+function approve(rows: any[]) {
+	runAction(
+		() => podGenerationService.approvePrompts({ ids: rows.map(e => e.id) }),
+		'提示词已确认',
+		'提示词确认失败'
+	);
 }
 
 function run() {
 	ElMessageBox.confirm('将生成当前批次中已确认且待生成的图片，是否继续？', '提示', {
 		type: 'warning'
-	}).then(() => {
-		podGenerationService.runBatch({ id: batch.value.id }).then(() => {
-			ElMessage.success('生成完成');
-			refresh();
-		});
-	});
+	}).then(() =>
+		runAction(
+			() => podGenerationService.runBatch({ id: batch.value.id }),
+			'生成完成',
+			'生成失败'
+		)
+	);
 }
 
 function retryFailed() {
-	ElMessageBox.confirm('确定重试当前批次中的失败图片？', '提示', { type: 'warning' }).then(() => {
-		podGenerationService.retryFailed({ id: batch.value.id }).then(() => {
-			ElMessage.success('重试完成');
-			refresh();
-		});
-	});
+	ElMessageBox.confirm('确定重试当前批次中的失败图片？', '提示', { type: 'warning' }).then(() =>
+		runAction(
+			() => podGenerationService.retryFailed({ id: batch.value.id }),
+			'重试完成',
+			'重试失败'
+		)
+	);
 }
 
 function retryItem(row: any) {
-	podGenerationService.retryItem({ id: row.id }).then(() => {
-		ElMessage.success('生成完成');
-		refresh();
-	});
+	ElMessageBox.confirm(`将重新生成第 ${row.itemNo || row.id} 张图片，是否继续？`, '提示', {
+		type: 'warning'
+	}).then(() =>
+		runAction(
+			() => podGenerationService.retryItem({ id: row.id }),
+			'生成完成',
+			'生成失败'
+		)
+	);
 }
 
 function retrySelection() {
 	const rows = selectedRetryRows.value;
 	ElMessageBox.confirm(`将重新生成选中的 ${rows.length} 张图片，是否继续？`, '提示', {
 		type: 'warning'
-	}).then(() => {
-		podGenerationService.retryItems({ ids: rows.map(e => e.id) }).then(() => {
-			ElMessage.success('重生成完成');
-			refresh();
-		});
-	});
+	}).then(() =>
+		runAction(
+			() => podGenerationService.retryItems({ ids: rows.map(e => e.id) }),
+			'重生成完成',
+			'重生成失败'
+		)
+	);
 }
 
 function cutoutItem(row: any) {
 	// 抠图只消费当前已落盘图片；ComfyUI 恢复后可对之前保留的原图继续处理。
 	ElMessageBox.confirm('将对当前图片执行抠图，并覆盖为透明背景版本，是否继续？', '提示', {
 		type: 'warning'
-	}).then(() => {
-		podGenerationService
-			.cutoutItem({ id: row.id })
-			.then(() => {
-				ElMessage.success('抠图完成');
-				refresh();
-			})
-			.catch(err => {
-				ElMessage.error(err.message || '抠图失败');
-				refresh();
-			});
-	});
+	}).then(() =>
+		runAction(
+			() => podGenerationService.cutoutItem({ id: row.id }),
+			'抠图完成',
+			'抠图失败'
+		)
+	);
 }
 
 function generateMockupItem(row: any) {
 	// 单独生成效果图方便修正模板合成结果，重复执行会覆盖同名 JPG。
 	ElMessageBox.confirm('将用当前印花图生成并覆盖 T 恤效果图，是否继续？', '提示', {
 		type: 'warning'
-	}).then(() => {
-		podGenerationService
-			.generateMockupItem({ id: row.id })
-			.then(() => {
-				ElMessage.success('效果图已生成');
-				refresh();
-			})
-			.catch(err => {
-				ElMessage.error(err.message || '效果图生成失败');
-			});
-	});
+	}).then(() =>
+		runAction(
+			() => podGenerationService.generateMockupItem({ id: row.id }),
+			'效果图已生成',
+			'效果图生成失败'
+		)
+	);
 }
 
 onActivated(() => {
