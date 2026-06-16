@@ -101,14 +101,6 @@ class PodGenerationService extends BaseService {
 		});
 	}
 
-	rejectPrompts(data: any) {
-		return this.request({
-			url: '/rejectPrompts',
-			method: 'POST',
-			data
-		});
-	}
-
 	detail(params: any) {
 		return this.request({
 			url: '/detail',

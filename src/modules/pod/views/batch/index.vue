@@ -89,7 +89,7 @@ import * as XLSX from 'xlsx';
 const router = useRouter();
 const Form = useForm();
 const importTips =
-	'请上传包含「主题」「数量」两列的 Excel；可选「并发数」，为空时使用图片供应商默认并发';
+	'请上传包含「主题」「数量」两列的 Excel；可选「并发数」「自动生图」，自动生图支持 是/否、true/false、1/0';
 const exportDateRange = ref<string[]>([]);
 const exporting = ref(false);
 
@@ -274,11 +274,19 @@ function onImportSubmit(data: { list: any[] }, { done, close }: any) {
 		return ElMessage.error('表格中没有可创建的主题和数量');
 	}
 
-	podGenerationService
-		.createBatches({
-			rows,
-			autoRun: true
-		})
+	const autoRun = rows.length <= 3 && rows.every(row => parseAutoRun(row, true));
+	const totalImages = rows.reduce((sum, row) => sum + Number(row?.数量 || row?.count || row?.生成数量 || 0), 0);
+	const message = autoRun
+		? `将导入 ${rows.length} 个批次并立即自动生图，预计 ${totalImages} 张图片。是否继续？`
+		: `将导入 ${rows.length} 个批次并仅生成提示词，后续请到详情页确认后手动生图。是否继续？`;
+
+	ElMessageBox.confirm(message, '导入确认', { type: autoRun ? 'warning' : 'info' })
+		.then(() =>
+			podGenerationService.createBatches({
+				rows,
+				autoRun
+			})
+		)
 		.then((res: any) => {
 			const failed = res?.failed || 0;
 			const success = res?.success || 0;
@@ -292,13 +300,19 @@ function onImportSubmit(data: { list: any[] }, { done, close }: any) {
 					type: 'warning'
 				});
 			} else {
-				ElMessage.success(`已创建 ${success} 个批次，正在生成图片`);
+				ElMessage.success(
+					autoRun
+						? `已创建 ${success} 个批次，正在生成图片`
+						: `已创建 ${success} 个批次，请先确认提示词`
+				);
 			}
 			close();
 			Crud.value?.refresh();
 		})
 		.catch(err => {
-			ElMessage.error(err.message);
+			if (err !== 'cancel') {
+				ElMessage.error(err.message || '导入失败');
+			}
 		})
 		.finally(() => {
 			done();
@@ -309,6 +323,15 @@ function isImportRowValid(row: any) {
 	const topic = String(row?.主题 || row?.topic || row?.生成主题 || '').trim();
 	const count = String(row?.数量 || row?.count || row?.生成数量 || '').trim();
 	return Boolean(topic && count);
+}
+
+function parseAutoRun(row: any, fallback = false) {
+	const raw = row?.自动生图 ?? row?.autoRun ?? row?.是否自动生图;
+	if (raw === undefined || raw === null || String(raw).trim() === '') {
+		return fallback;
+	}
+	const text = String(raw).trim().toLowerCase();
+	return ['1', 'true', 'yes', 'y', '是', '自动', '开启'].includes(text);
 }
 
 async function exportBatchExcel() {
