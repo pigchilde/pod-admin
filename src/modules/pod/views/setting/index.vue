@@ -27,10 +27,10 @@
 						</el-select>
 					</el-form-item>
 					<el-form-item label="生图尺寸">
-						<el-input v-model="form.generation.size" placeholder="1024x1024" />
+						<el-input v-model="form.generation.size" placeholder="1024x1024" @blur="validateSizeField('size')" />
 					</el-form-item>
 					<el-form-item label="输出尺寸">
-						<el-input v-model="form.generation.outputSize" placeholder="2048x2048" />
+						<el-input v-model="form.generation.outputSize" placeholder="2048x2048" @blur="validateSizeField('outputSize')" />
 					</el-form-item>
 					<el-form-item label="超时时间(ms)">
 						<el-input-number
@@ -256,13 +256,26 @@ async function load() {
 	}
 }
 
+function validateSizeField(field: 'size' | 'outputSize') {
+	const value = String(form.generation[field] || '').trim();
+	if (!/^\d+x\d+$/.test(value)) {
+		ElMessage.warning('图片尺寸格式应为 1024x1024');
+		form.generation[field] = field === 'size' ? '1024x1024' : '2048x2048';
+	}
+}
+
 function save() {
+	validateSizeField('size');
+	validateSizeField('outputSize');
 	saving.value = true;
 	podSettingService
 		.save(form)
 		.then((res: any) => {
 			setForm(res);
 			ElMessage.success('设置已保存');
+		})
+		.catch((err: any) => {
+			ElMessage.error(err?.message || '设置保存失败');
 		})
 		.finally(() => {
 			saving.value = false;

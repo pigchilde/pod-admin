@@ -147,6 +147,8 @@ async function submit() {
 		} else {
 			ElMessage.success('抠图完成');
 		}
+	} catch (err: any) {
+		ElMessage.error(err?.message || '抠图失败');
 	} finally {
 		loading.value = false;
 	}

@@ -149,7 +149,7 @@ const Upsert = useUpsert({
 			component: {
 				name: 'el-input',
 				props: {
-					placeholder: '编辑时留空表示保留原 Key'
+					placeholder: '编辑时留空或保持 ******** 表示保留原 Key', showPassword: true
 				}
 			}
 		},
