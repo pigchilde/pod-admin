@@ -27,6 +27,14 @@
 			>
 				重生成选中
 			</el-button>
+			<el-button
+				type="primary"
+				:loading="actionLoading"
+				:disabled="actionLoading || !canCutoutSelection"
+				@click="cutoutSelection"
+			>
+				选中抠图
+			</el-button>
 			<el-button type="warning" :loading="actionLoading" :disabled="actionLoading || !batch?.failedCount" @click="retryFailed">
 				重试失败
 			</el-button>
@@ -138,6 +146,9 @@ const Crud = useCrud(
 const isGenerating = (row: any) => row.status === 'running';
 const isCutoutRunning = (row: any) => row.status === 'cutout_running';
 const isBusy = (row: any) => isGenerating(row) || isCutoutRunning(row);
+const canOperateImage = (row: any) => row.promptStatus === 'approved' && !isBusy(row);
+const canCutoutRow = (row: any) => Boolean(row.imageUrl) && canOperateImage(row);
+const canMockupRow = (row: any) => Boolean(row.imageUrl) && !isBusy(row);
 
 const Table = useTable({
 	contextMenu: ['refresh', 'check'],
@@ -177,8 +188,7 @@ const Table = useTable({
 					{
 						label: '生图',
 						type: 'warning',
-						disabled: actionLoading.value,
-						hidden: isBusy(scope.row),
+						disabled: actionLoading.value || !canOperateImage(scope.row),
 						onClick() {
 							retryItem(scope.row);
 						}
@@ -186,11 +196,7 @@ const Table = useTable({
 					{
 						label: '抠图',
 						type: 'primary',
-						disabled: actionLoading.value,
-						hidden:
-							!scope.row.imageUrl ||
-							isBusy(scope.row) ||
-							scope.row.promptStatus !== 'approved',
+						disabled: actionLoading.value || !canCutoutRow(scope.row),
 						onClick() {
 							cutoutItem(scope.row);
 						}
@@ -198,8 +204,7 @@ const Table = useTable({
 					{
 						label: '生成效果图',
 						type: 'success',
-						disabled: actionLoading.value,
-						hidden: !scope.row.imageUrl || isBusy(scope.row),
+						disabled: actionLoading.value || !canMockupRow(scope.row),
 						onClick() {
 							generateMockupItem(scope.row);
 						}
@@ -217,7 +222,11 @@ const selectedDraftRows = computed(() =>
 );
 
 const selectedRetryRows = computed(() =>
-	selectedRows.value.filter((row: any) => row.promptStatus === 'approved' && !isBusy(row))
+	selectedRows.value.filter((row: any) => canOperateImage(row))
+);
+
+const selectedCutoutRows = computed(() =>
+	selectedRows.value.filter((row: any) => canCutoutRow(row))
 );
 
 const canApproveSelection = computed(() => selectedDraftRows.value.length > 0);
@@ -226,6 +235,7 @@ const canRetrySelection = computed(
 	() => selectedRetryRows.value.length > 0 && batch.value?.status !== 'image_generating'
 );
 
+const canCutoutSelection = computed(() => selectedCutoutRows.value.length > 0);
 
 function refresh() {
 	const id = Number(route.params.id);
@@ -348,6 +358,44 @@ function retrySelection() {
 			'重生成失败'
 		)
 	);
+}
+
+function cutoutSelection() {
+	const rows = selectedCutoutRows.value;
+	ElMessageBox.confirm(
+		`将按顺序逐张抠图选中的 ${rows.length} 张图片，完成一张后才会开始下一张，是否继续？`,
+		'提示',
+		{ type: 'warning' }
+	).then(async () => {
+		if (actionLoading.value) {
+			return;
+		}
+		let success = 0;
+		const failed: string[] = [];
+		try {
+			actionLoading.value = true;
+			for (let index = 0; index < rows.length; index += 1) {
+				const row = rows[index];
+				ElMessage.info(`正在抠图 ${index + 1}/${rows.length}：${row.itemNo || row.id}`);
+				try {
+					await podGenerationService.cutoutItem({ id: row.id });
+					success += 1;
+					refresh();
+				} catch (err: any) {
+					failed.push(`${row.itemNo || row.id}：${err?.message || '抠图失败'}`);
+				}
+			}
+			if (failed.length) {
+				ElMessage.warning(`选中抠图完成，成功 ${success} 张，失败 ${failed.length} 张`);
+				console.warn('[POD_CUTOUT_SELECTION_FAIL]', failed);
+			} else {
+				ElMessage.success(`选中抠图完成，共 ${success} 张`);
+			}
+			refresh();
+		} finally {
+			actionLoading.value = false;
+		}
+	});
 }
 
 function cutoutItem(row: any) {
