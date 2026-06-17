@@ -42,14 +42,11 @@ export function promptStatusType(status: string) {
 	)[status || 'draft'];
 }
 
-export function imagePreviewUrl(url: string, row: any) {
+export function imagePreviewUrl(url: string, cacheKey: string | number) {
 	if (!url) {
 		return '';
 	}
-	if (url.includes('v=')) {
-		return url;
-	}
-	const version = row.updateTime || row.createTime || Date.now();
-	const separator = url.includes('?') ? '&' : '?';
-	return `${url}${separator}v=${encodeURIComponent(version)}`;
+
+	const cleanUrl = String(url).split(/[?#]/)[0];
+	return `${cleanUrl}?_t=${encodeURIComponent(cacheKey || Date.now())}`;
 }

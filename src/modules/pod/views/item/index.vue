@@ -50,8 +50,8 @@
 				<template #column-imageUrl="{ scope }">
 					<el-image
 						v-if="scope.row.imageUrl"
-						:src="imagePreviewUrl(scope.row.imageUrl, scope.row)"
-						:preview-src-list="[imagePreviewUrl(scope.row.imageUrl, scope.row)]"
+						:src="imagePreviewUrl(scope.row.imageUrl, imageCacheKey)"
+						:preview-src-list="[imagePreviewUrl(scope.row.imageUrl, imageCacheKey)]"
 						preview-teleported
 						fit="cover"
 						class="preview"
@@ -62,8 +62,8 @@
 				<template #column-mockupImageUrl="{ scope }">
 					<el-image
 						v-if="scope.row.mockupImageUrl"
-						:src="imagePreviewUrl(scope.row.mockupImageUrl, scope.row)"
-						:preview-src-list="[imagePreviewUrl(scope.row.mockupImageUrl, scope.row)]"
+						:src="imagePreviewUrl(scope.row.mockupImageUrl, imageCacheKey)"
+						:preview-src-list="[imagePreviewUrl(scope.row.mockupImageUrl, imageCacheKey)]"
 						preview-teleported
 						fit="cover"
 						class="preview"
@@ -112,6 +112,7 @@ const router = useRouter();
 const Form = useForm();
 const batch = ref<any>();
 const actionLoading = ref(false);
+const imageCacheKey = ref(Date.now());
 
 const pendingImageCount = computed(() =>
 	Math.max(
@@ -244,6 +245,7 @@ function refresh() {
 	}
 	podGenerationService.detail({ id }).then((res: any) => {
 		batch.value = res;
+		imageCacheKey.value = Date.now();
 		Crud.value?.refresh({ page: 1 });
 	});
 }

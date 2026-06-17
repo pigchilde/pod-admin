@@ -29,8 +29,8 @@
 				<template #column-imageUrl="{ scope }">
 					<el-image
 						v-if="scope.row.imageUrl"
-						:src="imagePreviewUrl(scope.row.imageUrl, scope.row)"
-						:preview-src-list="[imagePreviewUrl(scope.row.imageUrl, scope.row)]"
+						:src="imagePreviewUrl(scope.row.imageUrl, imageCacheKey)"
+						:preview-src-list="[imagePreviewUrl(scope.row.imageUrl, imageCacheKey)]"
 						preview-teleported
 						fit="cover"
 						class="preview"
@@ -41,8 +41,8 @@
 				<template #column-mockupImageUrl="{ scope }">
 					<el-image
 						v-if="scope.row.mockupImageUrl"
-						:src="imagePreviewUrl(scope.row.mockupImageUrl, scope.row)"
-						:preview-src-list="[imagePreviewUrl(scope.row.mockupImageUrl, scope.row)]"
+						:src="imagePreviewUrl(scope.row.mockupImageUrl, imageCacheKey)"
+						:preview-src-list="[imagePreviewUrl(scope.row.mockupImageUrl, imageCacheKey)]"
 						preview-teleported
 						fit="cover"
 						class="preview"
@@ -112,6 +112,7 @@ const options = reactive({
 });
 
 const createDateRange = ref<[string, string] | []>(todayRange());
+const imageCacheKey = ref(Date.now());
 
 const itemService = {
 	page(data: any) {
@@ -178,7 +179,12 @@ function createTimeParams() {
 }
 
 function refreshByDate() {
-	Crud.value?.refresh({ page: 1 });
+	refresh({ page: 1 });
+}
+
+function refresh(params?: any) {
+	imageCacheKey.value = Date.now();
+	Crud.value?.refresh(params);
 }
 
 function fileDirectory(filePath: string) {
@@ -242,7 +248,7 @@ function generateMockupItem(row: any) {
 			.generateMockupItem({ id: row.id })
 			.then(() => {
 				ElMessage.success('效果图已生成');
-				Crud.value?.refresh();
+				refresh();
 			})
 			.catch(err => {
 				ElMessage.error(err.message || '效果图生成失败');
