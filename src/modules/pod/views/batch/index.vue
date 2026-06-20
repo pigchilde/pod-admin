@@ -266,7 +266,7 @@ function openCreate() {
 	});
 }
 
-function onImportSubmit(data: { list: any[] }, { done, close }: any) {
+function onImportSubmit(data: { list: any[]; filename?: string }, { done, close }: any) {
 	const rows = (data.list || []).filter(isImportRowValid);
 
 	if (!rows.length) {
@@ -284,14 +284,16 @@ function onImportSubmit(data: { list: any[] }, { done, close }: any) {
 		.then(() =>
 			podGenerationService.createBatches({
 				rows,
-				autoRun
+				autoRun,
+				fileName: data.filename
 			})
 		)
 		.then((res: any) => {
 			const failed = res?.failed || 0;
 			const success = res?.success || 0;
+			const importText = res?.importNo ? `，导入编号 ${res.importNo}` : '';
 			if (failed) {
-				ElMessage.warning(`已创建 ${success} 个批次，${failed} 行失败`);
+				ElMessage.warning(`已创建 ${success} 个批次，${failed} 行失败${importText}`);
 				const details = (res?.results || [])
 					.filter((item: any) => item.status === 'failed')
 					.map((item: any) => `第 ${item.rowNo} 行：${item.error}`)
@@ -302,8 +304,8 @@ function onImportSubmit(data: { list: any[] }, { done, close }: any) {
 			} else {
 				ElMessage.success(
 					autoRun
-						? `已创建 ${success} 个批次，正在生成图片`
-						: `已创建 ${success} 个批次，请先确认提示词`
+						? `已创建 ${success} 个批次，正在生成图片${importText}`
+						: `已创建 ${success} 个批次，请先确认提示词${importText}`
 				);
 			}
 			close();
