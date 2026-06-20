@@ -10,6 +10,24 @@
 				:width="130"
 				placeholder="提示词状态"
 			/>
+			<cl-select
+				:options="options.processStatus"
+				prop="cutoutStatus"
+				:width="120"
+				placeholder="抠图状态"
+			/>
+			<cl-select
+				:options="options.processStatus"
+				prop="mockupStatus"
+				:width="130"
+				placeholder="效果图状态"
+			/>
+			<cl-select
+				:options="options.verifyStatus"
+				prop="verifyStatus"
+				:width="120"
+				placeholder="检查状态"
+			/>
 			<el-date-picker
 				v-model="createDateRange"
 				type="daterange"
@@ -62,6 +80,24 @@
 					</el-tag>
 				</template>
 
+				<template #column-cutoutStatus="{ scope }">
+					<el-tag :type="processStatusType(scope.row.cutoutStatus)" effect="plain">
+						{{ processStatusText(scope.row.cutoutStatus) }}
+					</el-tag>
+				</template>
+
+				<template #column-mockupStatus="{ scope }">
+					<el-tag :type="processStatusType(scope.row.mockupStatus)" effect="plain">
+						{{ processStatusText(scope.row.mockupStatus) }}
+					</el-tag>
+				</template>
+
+				<template #column-verifyStatus="{ scope }">
+					<el-tag :type="verifyStatusType(scope.row.verifyStatus)" effect="plain">
+						{{ verifyStatusText(scope.row.verifyStatus) }}
+					</el-tag>
+				</template>
+
 				<template #column-filePath="{ scope }">
 					<el-tooltip
 						v-if="scope.row.filePath"
@@ -108,6 +144,19 @@ const options = reactive({
 		{ label: '待确认', value: 'draft', type: 'warning' },
 		{ label: '已确认', value: 'approved', type: 'success' },
 		{ label: '已驳回', value: 'rejected', type: 'danger' }
+	],
+	processStatus: [
+		{ label: '待处理', value: 'pending', type: 'info' },
+		{ label: '处理中', value: 'running', type: 'primary' },
+		{ label: '成功', value: 'success', type: 'success' },
+		{ label: '失败', value: 'failed', type: 'danger' },
+		{ label: '跳过', value: 'skipped', type: 'info' }
+	],
+	verifyStatus: [
+		{ label: '待检查', value: 'pending', type: 'info' },
+		{ label: '通过', value: 'ok', type: 'success' },
+		{ label: '警告', value: 'warning', type: 'warning' },
+		{ label: '失败', value: 'failed', type: 'danger' }
 	]
 });
 
@@ -142,6 +191,9 @@ const Table = useTable({
 		{ prop: 'itemNo', label: '编号', width: 80 },
 		{ prop: 'status', label: '图片状态', width: 110 },
 		{ prop: 'promptStatus', label: '提示词', width: 110 },
+		{ prop: 'cutoutStatus', label: '抠图', width: 100 },
+		{ prop: 'mockupStatus', label: '效果图', width: 100 },
+		{ prop: 'verifyStatus', label: '检查', width: 100 },
 		{ prop: 'seoTitle', label: '标题', minWidth: 220, showOverflowTooltip: true },
 		{ prop: 'filePath', label: '文件路径', minWidth: 260, showOverflowTooltip: true },
 		{ prop: 'createTime', label: '创建时间', width: 170, sortable: 'desc' },
@@ -254,6 +306,52 @@ function generateMockupItem(row: any) {
 				ElMessage.error(err.message || '效果图生成失败');
 			});
 	});
+}
+
+function processStatusText(status: string) {
+	return (
+		{
+			pending: '待处理',
+			running: '处理中',
+			success: '成功',
+			failed: '失败',
+			skipped: '跳过'
+		} as Record<string, string>
+	)[status || 'pending'];
+}
+
+function processStatusType(status: string) {
+	return (
+		{
+			pending: 'info',
+			running: 'primary',
+			success: 'success',
+			failed: 'danger',
+			skipped: 'info'
+		} as Record<string, any>
+	)[status || 'pending'];
+}
+
+function verifyStatusText(status: string) {
+	return (
+		{
+			pending: '待检查',
+			ok: '通过',
+			warning: '警告',
+			failed: '失败'
+		} as Record<string, string>
+	)[status || 'pending'];
+}
+
+function verifyStatusType(status: string) {
+	return (
+		{
+			pending: 'info',
+			ok: 'success',
+			warning: 'warning',
+			failed: 'danger'
+		} as Record<string, any>
+	)[status || 'pending'];
 }
 </script>
 

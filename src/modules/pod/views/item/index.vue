@@ -39,6 +39,24 @@
 				重试失败
 			</el-button>
 			<cl-flex1 />
+			<cl-select
+				:options="options.processStatus"
+				prop="cutoutStatus"
+				:width="120"
+				placeholder="抠图状态"
+			/>
+			<cl-select
+				:options="options.processStatus"
+				prop="mockupStatus"
+				:width="130"
+				placeholder="效果图状态"
+			/>
+			<cl-select
+				:options="options.verifyStatus"
+				prop="verifyStatus"
+				:width="120"
+				placeholder="检查状态"
+			/>
 			<el-text v-if="batch">
 				{{ batch.topic }}｜提示词 {{ batch.approvedPromptCount || 0 }}/{{ batch.promptCount || 0 }}｜图片
 				{{ batch.successCount || 0 }}/{{ batch.count }}
@@ -82,6 +100,24 @@
 						{{ imageStatusText(scope.row.status) }}
 					</el-tag>
 				</template>
+
+				<template #column-cutoutStatus="{ scope }">
+					<el-tag :type="processStatusType(scope.row.cutoutStatus)" effect="plain">
+						{{ processStatusText(scope.row.cutoutStatus) }}
+					</el-tag>
+				</template>
+
+				<template #column-mockupStatus="{ scope }">
+					<el-tag :type="processStatusType(scope.row.mockupStatus)" effect="plain">
+						{{ processStatusText(scope.row.mockupStatus) }}
+					</el-tag>
+				</template>
+
+				<template #column-verifyStatus="{ scope }">
+					<el-tag :type="verifyStatusType(scope.row.verifyStatus)" effect="plain">
+						{{ verifyStatusText(scope.row.verifyStatus) }}
+					</el-tag>
+				</template>
 			</cl-table>
 		</cl-row>
 
@@ -102,7 +138,7 @@ defineOptions({
 import { useCrud, useForm, useTable } from '@cool-vue/crud';
 import { ArrowLeft } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { computed, onActivated, onMounted, ref, watch } from 'vue';
+import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { podGenerationService } from '../../service/generation';
 import { imagePreviewUrl, imageStatusText, imageStatusType, promptStatusText, promptStatusType } from '../../utils/display';
@@ -113,6 +149,21 @@ const Form = useForm();
 const batch = ref<any>();
 const actionLoading = ref(false);
 const imageCacheKey = ref(Date.now());
+const options = reactive({
+	processStatus: [
+		{ label: '待处理', value: 'pending', type: 'info' },
+		{ label: '处理中', value: 'running', type: 'primary' },
+		{ label: '成功', value: 'success', type: 'success' },
+		{ label: '失败', value: 'failed', type: 'danger' },
+		{ label: '跳过', value: 'skipped', type: 'info' }
+	],
+	verifyStatus: [
+		{ label: '待检查', value: 'pending', type: 'info' },
+		{ label: '通过', value: 'ok', type: 'success' },
+		{ label: '警告', value: 'warning', type: 'warning' },
+		{ label: '失败', value: 'failed', type: 'danger' }
+	]
+});
 
 const pendingImageCount = computed(() =>
 	Math.max(
@@ -160,6 +211,9 @@ const Table = useTable({
 		{ prop: 'itemNo', label: '编号', width: 70 },
 		{ prop: 'promptStatus', label: '提示词', width: 110 },
 		{ prop: 'status', label: '图片状态', width: 110 },
+		{ prop: 'cutoutStatus', label: '抠图', width: 100 },
+		{ prop: 'mockupStatus', label: '效果图', width: 100 },
+		{ prop: 'verifyStatus', label: '检查', width: 100 },
 		{ prop: 'seoFileName', label: 'SEO文件名', minWidth: 220, showOverflowTooltip: true },
 		{ prop: 'seoTitle', label: '标题', minWidth: 220, showOverflowTooltip: true },
 		{ prop: 'prompt', label: 'Prompt', minWidth: 380, showOverflowTooltip: true },
@@ -248,6 +302,52 @@ function refresh() {
 		imageCacheKey.value = Date.now();
 		Crud.value?.refresh({ page: 1 });
 	});
+}
+
+function processStatusText(status: string) {
+	return (
+		{
+			pending: '待处理',
+			running: '处理中',
+			success: '成功',
+			failed: '失败',
+			skipped: '跳过'
+		} as Record<string, string>
+	)[status || 'pending'];
+}
+
+function processStatusType(status: string) {
+	return (
+		{
+			pending: 'info',
+			running: 'primary',
+			success: 'success',
+			failed: 'danger',
+			skipped: 'info'
+		} as Record<string, any>
+	)[status || 'pending'];
+}
+
+function verifyStatusText(status: string) {
+	return (
+		{
+			pending: '待检查',
+			ok: '通过',
+			warning: '警告',
+			failed: '失败'
+		} as Record<string, string>
+	)[status || 'pending'];
+}
+
+function verifyStatusType(status: string) {
+	return (
+		{
+			pending: 'info',
+			ok: 'success',
+			warning: 'warning',
+			failed: 'danger'
+		} as Record<string, any>
+	)[status || 'pending'];
 }
 
 function openPrompt(row: any) {
