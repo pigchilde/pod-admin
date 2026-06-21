@@ -347,6 +347,7 @@ async function exportBatchExcel() {
 		const detailRows = items.map((item: any) => {
 			const batch: any = batchMap.get(item.batchId) || {};
 			return {
+				'批次 ID': item.batchId,
 				主题: batch.topic || '',
 				标题: item.seoTitle || item.seoFileName || '',
 				Prompt: item.prompt || ''
@@ -364,7 +365,7 @@ async function exportBatchExcel() {
 		XLSX.utils.book_append_sheet(
 			workbook,
 			XLSX.utils.json_to_sheet(detailRows, {
-				header: ['主题', '标题', 'Prompt']
+				header: ['批次 ID', '主题', '标题', 'Prompt']
 			}),
 			'附表'
 		);
