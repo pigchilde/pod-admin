@@ -38,6 +38,12 @@
 			<el-button type="warning" :loading="actionLoading" :disabled="actionLoading || !batch?.failedCount" @click="retryFailed">
 				重试失败
 			</el-button>
+			<el-button type="warning" :loading="actionLoading" :disabled="actionLoading || !batch" @click="repairFailures">
+				修复失败项
+			</el-button>
+			<el-button :loading="actionLoading" :disabled="actionLoading || !batch" @click="recheckArtifacts">
+				重新校验产物
+			</el-button>
 			<cl-flex1 />
 			<cl-select
 				:options="options.processStatus"
@@ -433,6 +439,28 @@ function retryFailed() {
 			() => podGenerationService.retryFailed({ id: batch.value.id }),
 			'重试完成',
 			'重试失败'
+		)
+	);
+}
+
+function repairFailures() {
+	ElMessageBox.confirm('确定修复当前批次中的生图失败、抠图失败和效果图失败项？', '提示', {
+		type: 'warning'
+	}).then(() =>
+		runAction(
+			() => podGenerationService.repairFailures({ id: batch.value.id }),
+			'修复完成',
+			'修复失败'
+		)
+	);
+}
+
+function recheckArtifacts() {
+	ElMessageBox.confirm('确定重新校验当前批次的图片产物？不会重新生图。', '提示', { type: 'warning' }).then(() =>
+		runAction(
+			() => podGenerationService.recheckArtifacts({ id: batch.value.id }),
+			'校验完成',
+			'校验失败'
 		)
 	);
 }

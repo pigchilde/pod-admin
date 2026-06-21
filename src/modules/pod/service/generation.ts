@@ -49,6 +49,24 @@ class PodGenerationService extends BaseService {
 		});
 	}
 
+	repairFailures(data: any) {
+		return this.request({
+			url: '/repairFailures',
+			method: 'POST',
+			data,
+			timeout: 180000
+		});
+	}
+
+	recheckArtifacts(data: any) {
+		return this.request({
+			url: '/recheckArtifacts',
+			method: 'POST',
+			data,
+			timeout: 180000
+		});
+	}
+
 	retryItem(data: any) {
 		return this.request({
 			url: '/retryItem',
