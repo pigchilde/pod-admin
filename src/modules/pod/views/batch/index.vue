@@ -89,7 +89,7 @@ import * as XLSX from 'xlsx';
 const router = useRouter();
 const Form = useForm();
 const importTips =
-	'请上传包含「主题」「数量」两列的 Excel；可选「并发数」「自动生图」，自动生图支持 是/否、true/false、1/0';
+	'请上传包含「主题」「数量」两列的 Excel；可选「自动生图」，自动生图支持 是/否、true/false、1/0；生图并发统一使用当前图片供应商配置';
 const exportDateRange = ref<string[]>([]);
 const exporting = ref(false);
 
@@ -202,18 +202,6 @@ function openCreate() {
 				component: {
 					name: 'el-input-number',
 					props: { min: 1, max: 100 }
-				}
-			},
-			{
-				label: '并发数',
-				prop: 'concurrency',
-				component: {
-					name: 'el-input-number',
-					props: {
-						min: 1,
-						max: 100,
-						placeholder: '为空使用供应商默认并发'
-					}
 				}
 			},
 			{
