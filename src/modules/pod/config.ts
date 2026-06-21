@@ -23,6 +23,15 @@ export default (): ModuleConfig => {
 				component: () => import('./views/image/index.vue')
 			},
 			{
+				// 导入记录用于追踪每次 Excel 上传、每一行创建出的批次和失败修复入口。
+				path: '/pod/imports',
+				meta: {
+					label: '导入记录',
+					icon: 'icon-file'
+				},
+				component: () => import('./views/import/index.vue')
+			},
+			{
 				// 供应商配置拆分图片生成和提示词生成接口参数。
 				path: '/pod/provider',
 				meta: {

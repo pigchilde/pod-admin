@@ -189,7 +189,7 @@ const Table = useTable({
 		{ prop: 'createTime', label: '创建时间', width: 170, sortable: 'desc' },
 		{
 			type: 'op',
-			width: 150,
+			width: 200,
 			buttons: [
 				{
 					label: '行明细',
@@ -203,6 +203,13 @@ const Table = useTable({
 					type: 'warning',
 					onClick({ scope }) {
 						repairImport(scope.row);
+					}
+				},
+				{
+					label: '删除',
+					type: 'danger',
+					onClick({ scope }) {
+						removeImport(scope.row);
 					}
 				}
 			]
@@ -349,6 +356,31 @@ async function repairImport(row: any) {
 		() => podGenerationImportService.repairImport({ id: row.id }),
 		'修复完成'
 	);
+}
+
+async function removeImport(row: any) {
+	try {
+		await ElMessageBox.confirm(
+			`将删除导入记录「${row.importNo}」及其导入行明细，不会删除已创建的批次和图片，是否继续？`,
+			'提示',
+			{ type: 'warning' }
+		);
+	} catch {
+		return;
+	}
+
+	try {
+		await podGenerationImportService.delete({ ids: [row.id] });
+		ElMessage.success('导入记录已删除');
+		if (drawer.currentImportId === row.id) {
+			drawer.visible = false;
+			drawer.currentImportId = 0;
+			drawer.rows = [];
+		}
+		Crud.value?.refresh();
+	} catch (err: any) {
+		ElMessage.error(err?.message || '删除失败');
+	}
 }
 
 async function repairCurrentImport() {
