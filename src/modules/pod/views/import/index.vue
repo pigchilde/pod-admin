@@ -29,8 +29,13 @@
 			<cl-pagination />
 		</cl-row>
 
-		<el-drawer v-model="drawer.visible" :title="drawer.title" size="760px">
-			<el-table v-loading="drawer.loading" :data="drawer.rows" border height="calc(100vh - 180px)">
+		<el-drawer v-model="drawer.visible" :title="drawer.title" size="960px">
+			<div class="drawer-toolbar">
+				<el-button type="warning" :loading="drawer.actionLoading" @click="repairCurrentImport">
+					修复全部失败项
+				</el-button>
+			</div>
+			<el-table v-loading="drawer.loading" :data="drawer.rows" border height="calc(100vh - 285px)">
 				<el-table-column prop="rowNo" label="行号" width="72" />
 				<el-table-column prop="topic" label="主题" min-width="180" show-overflow-tooltip />
 				<el-table-column prop="count" label="数量" width="72" />
@@ -86,7 +91,42 @@
 					</template>
 				</el-table-column>
 				<el-table-column prop="error" label="错误" min-width="180" show-overflow-tooltip />
+				<el-table-column label="操作" width="120" fixed="right">
+					<template #default="{ row }">
+						<el-button
+							v-if="!row.batchId && row.status === 'failed'"
+							link
+							type="primary"
+							:loading="drawer.actionLoading"
+							@click="retryRow(row)"
+						>
+							重试创建
+						</el-button>
+						<el-button
+							v-else-if="row.batchId"
+							link
+							type="warning"
+							:loading="drawer.actionLoading"
+							@click="repairRow(row)"
+						>
+							修复批次
+						</el-button>
+						<span v-else class="empty-text">-</span>
+					</template>
+				</el-table-column>
 			</el-table>
+			<div class="drawer-pagination">
+				<el-pagination
+					v-model:current-page="drawer.pagination.page"
+					v-model:page-size="drawer.pagination.size"
+					:total="drawer.pagination.total"
+					:page-sizes="[20, 50, 100]"
+					layout="total, sizes, prev, pager, next, jumper"
+					background
+					@size-change="handleRowsSizeChange"
+					@current-change="handleRowsPageChange"
+				/>
+			</div>
 		</el-drawer>
 	</cl-crud>
 </template>
@@ -97,6 +137,7 @@ defineOptions({
 });
 
 import { useCrud, useTable } from '@cool-vue/crud';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { podGenerationImportService } from '../../service/import';
@@ -115,7 +156,14 @@ const options = reactive({
 const drawer = reactive({
 	visible: false,
 	loading: false,
+	actionLoading: false,
 	title: '',
+	currentImportId: 0,
+	pagination: {
+		page: 1,
+		size: 20,
+		total: 0
+	},
 	rows: [] as any[]
 });
 
@@ -148,6 +196,13 @@ const Table = useTable({
 					type: 'primary',
 					onClick({ scope }) {
 						openRows(scope.row);
+					}
+				},
+				{
+					label: '修复',
+					type: 'warning',
+					onClick({ scope }) {
+						repairImport(scope.row);
 					}
 				}
 			]
@@ -227,15 +282,102 @@ async function openRows(row: any) {
 	drawer.visible = true;
 	drawer.loading = true;
 	drawer.title = `导入行明细：${row.importNo}`;
+	drawer.currentImportId = row.id;
+	drawer.pagination.page = 1;
 	try {
-		const res: any = await podGenerationImportService.rows({
-			importId: row.id,
-			page: 1,
-			size: 100
-		});
-		drawer.rows = res?.list || [];
+		await reloadRows();
 	} finally {
 		drawer.loading = false;
+	}
+}
+
+async function reloadRows() {
+	if (!drawer.currentImportId) {
+		return;
+	}
+	const res: any = await podGenerationImportService.rows({
+		importId: drawer.currentImportId,
+		page: drawer.pagination.page,
+		size: drawer.pagination.size
+	});
+	drawer.rows = res?.list || [];
+	drawer.pagination.total = res?.pagination?.total || 0;
+	drawer.pagination.page = res?.pagination?.page || drawer.pagination.page;
+	drawer.pagination.size = res?.pagination?.size || drawer.pagination.size;
+}
+
+async function handleRowsPageChange(page: number) {
+	drawer.pagination.page = page;
+	drawer.loading = true;
+	try {
+		await reloadRows();
+	} finally {
+		drawer.loading = false;
+	}
+}
+
+async function handleRowsSizeChange(size: number) {
+	drawer.pagination.size = size;
+	drawer.pagination.page = 1;
+	drawer.loading = true;
+	try {
+		await reloadRows();
+	} finally {
+		drawer.loading = false;
+	}
+}
+
+async function retryRow(row: any) {
+	await runImportAction(
+		`确定重新创建第 ${row.rowNo} 行的批次？`,
+		() => podGenerationImportService.retryRow({ id: row.id }),
+		'重试创建完成'
+	);
+}
+
+async function repairRow(row: any) {
+	await runImportAction(
+		`确定修复第 ${row.rowNo} 行关联批次的失败项？`,
+		() => podGenerationImportService.repairRow({ id: row.id }),
+		'修复完成'
+	);
+}
+
+async function repairImport(row: any) {
+	await runImportAction(
+		`确定修复导入记录 ${row.importNo} 的失败项？`,
+		() => podGenerationImportService.repairImport({ id: row.id }),
+		'修复完成'
+	);
+}
+
+async function repairCurrentImport() {
+	if (!drawer.currentImportId) {
+		return;
+	}
+	await runImportAction(
+		'确定修复当前导入记录的全部失败项？',
+		() => podGenerationImportService.repairImport({ id: drawer.currentImportId }),
+		'修复完成'
+	);
+}
+
+async function runImportAction(message: string, action: () => Promise<any>, successText: string) {
+	try {
+		await ElMessageBox.confirm(message, '提示', { type: 'warning' });
+	} catch {
+		return;
+	}
+	drawer.actionLoading = true;
+	try {
+		await action();
+		ElMessage.success(successText);
+		await reloadRows();
+		Crud.value?.refresh();
+	} catch (err: any) {
+		ElMessage.error(err?.message || '操作失败');
+	} finally {
+		drawer.actionLoading = false;
 	}
 }
 
@@ -247,6 +389,18 @@ function goBatch(id: number) {
 <style lang="scss" scoped>
 .failed {
 	margin-left: 8px;
+}
+
+.drawer-toolbar {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 12px;
+}
+
+.drawer-pagination {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 12px;
 }
 
 .empty-text {
