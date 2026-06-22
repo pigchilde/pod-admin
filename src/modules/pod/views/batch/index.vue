@@ -262,26 +262,22 @@ function onImportSubmit(data: { list: any[]; filename?: string }, { done, close 
 		return ElMessage.error('表格中没有可创建的主题和数量');
 	}
 
-	const autoRun = rows.length <= 3 && rows.every(row => parseAutoRun(row, true));
 	const totalImages = rows.reduce((sum, row) => sum + Number(row?.数量 || row?.count || row?.生成数量 || 0), 0);
-	const message = autoRun
-		? `将导入 ${rows.length} 个批次并立即自动生图，预计 ${totalImages} 张图片。是否继续？`
-		: `将导入 ${rows.length} 个批次并仅生成提示词，后续请到详情页确认后手动生图。是否继续？`;
+	const message = `将保存 ${rows.length} 行导入记录，并按行号顺序自动生成提示词和图片，预计 ${totalImages} 张图片。是否继续？`;
 
-	ElMessageBox.confirm(message, '导入确认', { type: autoRun ? 'warning' : 'info' })
+	ElMessageBox.confirm(message, '导入确认', { type: 'warning' })
 		.then(() =>
 			podGenerationService.createBatches({
 				rows,
-				autoRun,
 				fileName: data.filename
 			})
 		)
 		.then((res: any) => {
 			const failed = res?.failed || 0;
-			const success = res?.success || 0;
+			const queued = res?.queued || 0;
 			const importText = res?.importNo ? `，导入编号 ${res.importNo}` : '';
 			if (failed) {
-				ElMessage.warning(`已创建 ${success} 个批次，${failed} 行失败${importText}`);
+				ElMessage.warning(`已保存 ${queued} 行并进入执行队列，${failed} 行格式校验失败${importText}`);
 				const details = (res?.results || [])
 					.filter((item: any) => item.status === 'failed')
 					.map((item: any) => `第 ${item.rowNo} 行：${item.error}`)
@@ -290,11 +286,7 @@ function onImportSubmit(data: { list: any[]; filename?: string }, { done, close 
 					type: 'warning'
 				});
 			} else {
-				ElMessage.success(
-					autoRun
-						? `已创建 ${success} 个批次，正在生成图片${importText}`
-						: `已创建 ${success} 个批次，请先确认提示词${importText}`
-				);
+				ElMessage.success(`已保存 ${queued} 行并进入自动执行队列${importText}`);
 			}
 			close();
 			Crud.value?.refresh();
@@ -313,15 +305,6 @@ function isImportRowValid(row: any) {
 	const topic = String(row?.主题 || row?.topic || row?.生成主题 || '').trim();
 	const count = String(row?.数量 || row?.count || row?.生成数量 || '').trim();
 	return Boolean(topic && count);
-}
-
-function parseAutoRun(row: any, fallback = false) {
-	const raw = row?.自动生图 ?? row?.autoRun ?? row?.是否自动生图;
-	if (raw === undefined || raw === null || String(raw).trim() === '') {
-		return fallback;
-	}
-	const text = String(raw).trim().toLowerCase();
-	return ['1', 'true', 'yes', 'y', '是', '自动', '开启'].includes(text);
 }
 
 async function exportBatchExcel() {

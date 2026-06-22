@@ -43,7 +43,16 @@ class PodGenerationImportService extends BaseService {
 			url: '/repairImport',
 			method: 'POST',
 			data,
-			timeout: 180000
+			timeout: 600000
+		});
+	}
+
+	runImport(data: any) {
+		return this.request({
+			url: '/runImport',
+			method: 'POST',
+			data,
+			timeout: 600000
 		});
 	}
 }

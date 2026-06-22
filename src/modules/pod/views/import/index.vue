@@ -32,7 +32,7 @@
 		<el-drawer v-model="drawer.visible" :title="drawer.title" size="960px">
 			<div class="drawer-toolbar">
 				<el-button type="warning" :loading="drawer.actionLoading" @click="repairCurrentImport">
-					修复全部失败项
+					继续处理 / 修复失败项
 				</el-button>
 			</div>
 			<el-table v-loading="drawer.loading" :data="drawer.rows" border height="calc(100vh - 285px)">
@@ -94,13 +94,13 @@
 				<el-table-column label="操作" width="120" fixed="right">
 					<template #default="{ row }">
 						<el-button
-							v-if="!row.batchId && row.status === 'failed'"
+							v-if="!row.batchId && ['failed', 'pending'].includes(row.status)"
 							link
 							type="primary"
 							:loading="drawer.actionLoading"
 							@click="retryRow(row)"
 						>
-							重试创建
+							处理本行
 						</el-button>
 						<el-button
 							v-else-if="row.batchId"
@@ -146,7 +146,8 @@ const router = useRouter();
 
 const options = reactive({
 	status: [
-		{ label: '处理中', value: 'processing', type: 'primary' },
+		{ label: '待处理', value: 'pending', type: 'info' },
+		{ label: '执行中', value: 'running', type: 'primary' },
 		{ label: '导入完成', value: 'completed', type: 'success' },
 		{ label: '导入部分失败', value: 'partial_failed', type: 'warning' },
 		{ label: '导入失败', value: 'failed', type: 'danger' }
@@ -220,29 +221,39 @@ const Table = useTable({
 function statusText(status: string) {
 	return (
 		{
+			pending: '待处理',
+			running: '执行中',
 			processing: '处理中',
 			completed: '导入完成',
 			partial_failed: '导入部分失败',
 			failed: '导入失败'
 		} as Record<string, string>
-	)[status || 'processing'];
+	)[status || 'pending'];
 }
 
 function statusType(status: string) {
 	return (
 		{
+			pending: 'info',
+			running: 'primary',
 			processing: 'primary',
 			completed: 'success',
 			partial_failed: 'warning',
 			failed: 'danger'
 		} as Record<string, any>
-	)[status || 'processing'];
+	)[status || 'pending'];
 }
 
 function rowStatusText(status: string) {
 	return (
 		{
 			pending: '待处理',
+			creating_batch: '创建批次',
+			prompt_generating: '生成提示词',
+			image_generating: '生成图片',
+			post_processing: '后处理',
+			verifying: '校验产物',
+			completed: '已完成',
 			created: '已创建',
 			failed: '失败'
 		} as Record<string, string>
@@ -279,6 +290,12 @@ function rowStatusType(status: string) {
 	return (
 		{
 			pending: 'info',
+			creating_batch: 'primary',
+			prompt_generating: 'primary',
+			image_generating: 'primary',
+			post_processing: 'primary',
+			verifying: 'primary',
+			completed: 'success',
 			created: 'success',
 			failed: 'danger'
 		} as Record<string, any>
@@ -336,9 +353,9 @@ async function handleRowsSizeChange(size: number) {
 
 async function retryRow(row: any) {
 	await runImportAction(
-		`确定重新创建第 ${row.rowNo} 行的批次？`,
+		`确定处理第 ${row.rowNo} 行？系统会自动生成提示词并生图。`,
 		() => podGenerationImportService.retryRow({ id: row.id }),
-		'重试创建完成'
+		'处理完成'
 	);
 }
 
@@ -352,7 +369,7 @@ async function repairRow(row: any) {
 
 async function repairImport(row: any) {
 	await runImportAction(
-		`确定修复导入记录 ${row.importNo} 的失败项？`,
+		`确定继续处理并修复导入记录 ${row.importNo} 的异常项？`,
 		() => podGenerationImportService.repairImport({ id: row.id }),
 		'修复完成'
 	);
@@ -388,7 +405,7 @@ async function repairCurrentImport() {
 		return;
 	}
 	await runImportAction(
-		'确定修复当前导入记录的全部失败项？',
+		'确定继续处理并修复当前导入记录的异常项？',
 		() => podGenerationImportService.repairImport({ id: drawer.currentImportId }),
 		'修复完成'
 	);
