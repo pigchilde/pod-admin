@@ -2,6 +2,14 @@
 	<cl-crud ref="Crud">
 		<cl-row>
 			<cl-refresh-btn />
+			<cl-import-btn
+				type="success"
+				:icon="Upload"
+				:tips="importTips"
+				:row-filter="isImportRowValid"
+				first-sheet-only
+				:on-submit="onImportSubmit"
+			/>
 			<cl-flex1 />
 			<cl-select
 				:options="options.status"
@@ -263,12 +271,15 @@ defineOptions({
 });
 
 import { useCrud, useTable } from '@cool-vue/crud';
+import { Upload } from '@element-plus/icons-vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { computed, onBeforeUnmount, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { podGenerationImportService } from '../../service/import';
 
 const router = useRouter();
+const importTips =
+	'请上传包含「主题」「数量」两列的 Excel；可选「自动生图」，自动生图支持 是/否、true/false、1/0；生图并发统一使用当前图片供应商配置';
 
 const options = reactive({
 	status: [
@@ -369,6 +380,59 @@ const activeQueueItems = computed(() => {
 	const queue = queueDrawer.queues.find(item => item.key === queueDrawer.activeKey);
 	return queue?.items || [];
 });
+
+function onImportSubmit(data: { list: any[]; filename?: string }, { done, close }: any) {
+	const rows = (data.list || []).filter(isImportRowValid);
+
+	if (!rows.length) {
+		done();
+		return ElMessage.error('表格中没有可创建的主题和数量');
+	}
+
+	const totalImages = rows.reduce((sum, row) => sum + Number(row?.数量 || row?.count || row?.生成数量 || 0), 0);
+	const message = `将保存 ${rows.length} 行导入记录，并进入后台流水线队列生成提示词和图片，预计 ${totalImages} 张图片。是否继续？`;
+
+	ElMessageBox.confirm(message, '导入确认', { type: 'warning' })
+		.then(() =>
+			podGenerationImportService.createBatches({
+				rows,
+				fileName: data.filename
+			})
+		)
+		.then((res: any) => {
+			const failed = res?.failed || 0;
+			const queued = res?.queued || 0;
+			const importText = res?.importNo ? `，导入编号 ${res.importNo}` : '';
+			if (failed) {
+				ElMessage.warning(`已保存 ${queued} 行并进入执行队列，${failed} 行格式校验失败${importText}`);
+				const details = (res?.results || [])
+					.filter((item: any) => item.status === 'failed')
+					.map((item: any) => `第 ${item.rowNo} 行：${item.error}`)
+					.join('\n');
+				ElMessageBox.alert(details, '导入失败明细', {
+					type: 'warning'
+				});
+			} else {
+				ElMessage.success(`已保存 ${queued} 行并进入自动执行队列${importText}`);
+			}
+			close();
+			Crud.value?.refresh();
+		})
+		.catch(err => {
+			if (err !== 'cancel') {
+				ElMessage.error(err.message || '导入失败');
+			}
+		})
+		.finally(() => {
+			done();
+		});
+}
+
+function isImportRowValid(row: any) {
+	const topic = String(row?.主题 || row?.topic || row?.生成主题 || '').trim();
+	const count = String(row?.数量 || row?.count || row?.生成数量 || '').trim();
+	return Boolean(topic && count);
+}
 
 function statusText(status: string) {
 	return (

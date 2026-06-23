@@ -27,6 +27,15 @@ class PodGenerationImportService extends BaseService {
 		});
 	}
 
+	createBatches(data: any) {
+		return this.request({
+			url: '/createBatches',
+			method: 'POST',
+			data,
+			timeout: 180000
+		});
+	}
+
 	retryRow(data: any) {
 		return this.request({
 			url: '/retryRow',
