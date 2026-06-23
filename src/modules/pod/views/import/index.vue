@@ -172,6 +172,88 @@
 				/>
 			</div>
 		</el-drawer>
+
+		<el-drawer v-model="queueDrawer.visible" :title="queueDrawer.title" size="1040px">
+			<div v-loading="queueDrawer.loading" class="queue-panel">
+				<div class="queue-summary">
+					<div
+						v-for="queue in queueDrawer.queues"
+						:key="queue.key"
+						class="queue-card"
+						:class="{ active: queueDrawer.activeKey === queue.key }"
+						@click="queueDrawer.activeKey = queue.key"
+					>
+						<div class="queue-card__header">
+							<span>{{ queue.name }}</span>
+							<el-tag v-if="queue.stale" type="danger" effect="plain">
+								超时 {{ queue.stale }}
+							</el-tag>
+						</div>
+						<el-tooltip
+							:content="queue.totalHint || '当前队列候选总数'"
+							placement="top"
+						>
+							<div class="queue-card__total">{{ queue.total || 0 }}</div>
+						</el-tooltip>
+						<div class="queue-card__stats">
+							<span>待处理 {{ queue.pending || 0 }}</span>
+							<span>运行中 {{ queue.running || 0 }}</span>
+							<span>成功 {{ queue.success || 0 }}</span>
+							<span>失败 {{ queue.failed || 0 }}</span>
+							<span v-if="queue.skipped">跳过 {{ queue.skipped }}</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="queue-toolbar">
+					<el-text type="info">
+						stale 阈值 {{ queueDrawer.staleMinutes || 10 }} 分钟，列表优先显示运行中、失败、待处理项
+					</el-text>
+					<el-button :loading="queueDrawer.loading" @click="reloadQueueStats">刷新</el-button>
+				</div>
+
+				<el-table :data="activeQueueItems" border height="calc(100vh - 430px)">
+					<el-table-column prop="rowNo" label="行号" width="72">
+						<template #default="{ row }">
+							<span v-if="row.rowNo">{{ row.rowNo }}</span>
+							<span v-else class="empty-text">-</span>
+						</template>
+					</el-table-column>
+					<el-table-column prop="batchId" label="批次ID" width="90">
+						<template #default="{ row }">
+							<el-link v-if="row.batchId" type="primary" @click="goBatch(row.batchId)">
+								{{ row.batchId }}
+							</el-link>
+							<span v-else class="empty-text">-</span>
+						</template>
+					</el-table-column>
+					<el-table-column prop="itemNo" label="图片编号" width="100">
+						<template #default="{ row }">
+							<span v-if="row.itemNo">{{ row.itemNo }}</span>
+							<span v-else class="empty-text">-</span>
+						</template>
+					</el-table-column>
+					<el-table-column prop="status" label="状态" width="110">
+						<template #default="{ row }">
+							<el-tag :type="queueStatusType(row.status)" effect="plain">
+								{{ queueStatusText(row.status) }}
+							</el-tag>
+							<el-tag v-if="row.stale" type="danger" effect="plain" class="stale-tag">
+								超时
+							</el-tag>
+						</template>
+					</el-table-column>
+					<el-table-column prop="topic" label="主题" min-width="220" show-overflow-tooltip />
+					<el-table-column prop="updateTime" label="更新时间" width="170" />
+					<el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip>
+						<template #default="{ row }">
+							<span v-if="row.error">{{ row.error }}</span>
+							<span v-else class="empty-text">-</span>
+						</template>
+					</el-table-column>
+				</el-table>
+			</div>
+		</el-drawer>
 	</cl-crud>
 </template>
 
@@ -182,7 +264,7 @@ defineOptions({
 
 import { useCrud, useTable } from '@cool-vue/crud';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { podGenerationImportService } from '../../service/import';
 
@@ -213,6 +295,16 @@ const drawer = reactive({
 	rows: [] as any[]
 });
 
+const queueDrawer = reactive({
+	visible: false,
+	loading: false,
+	title: '',
+	currentImportId: 0,
+	activeKey: 'importPrompt',
+	staleMinutes: 10,
+	queues: [] as any[]
+});
+
 const Crud = useCrud(
 	{
 		service: podGenerationImportService
@@ -235,13 +327,20 @@ const Table = useTable({
 		{ prop: 'createTime', label: '创建时间', width: 170, sortable: 'desc' },
 		{
 			type: 'op',
-			width: 200,
+			width: 250,
 			buttons: [
 				{
 					label: '行明细',
 					type: 'primary',
 					onClick({ scope }) {
 						openRows(scope.row);
+					}
+				},
+				{
+					label: '队列',
+					type: 'success',
+					onClick({ scope }) {
+						openQueue(scope.row);
 					}
 				},
 				{
@@ -261,6 +360,11 @@ const Table = useTable({
 			]
 		}
 	]
+});
+
+const activeQueueItems = computed(() => {
+	const queue = queueDrawer.queues.find(item => item.key === queueDrawer.activeKey);
+	return queue?.items || [];
 });
 
 function statusText(status: string) {
@@ -349,6 +453,42 @@ function rowStatusType(status: string) {
 	)[status || 'pending'];
 }
 
+function queueStatusText(status: string) {
+	return (
+		{
+			pending: '待处理',
+			running: '运行中',
+			success: '成功',
+			failed: '失败',
+			skipped: '跳过',
+			creating_batch: '创建批次',
+			prompt_generating: '生成提示词',
+			image_generating: '生成图片',
+			post_processing: '后处理',
+			completed: '已完成',
+			created: '已创建'
+		} as Record<string, string>
+	)[status || 'pending'];
+}
+
+function queueStatusType(status: string) {
+	return (
+		{
+			pending: 'info',
+			running: 'primary',
+			success: 'success',
+			failed: 'danger',
+			skipped: 'info',
+			creating_batch: 'primary',
+			prompt_generating: 'primary',
+			image_generating: 'primary',
+			post_processing: 'primary',
+			completed: 'success',
+			created: 'success'
+		} as Record<string, any>
+	)[status || 'pending'];
+}
+
 async function openRows(row: any) {
 	drawer.visible = true;
 	drawer.loading = true;
@@ -359,6 +499,40 @@ async function openRows(row: any) {
 		await reloadRows();
 	} finally {
 		drawer.loading = false;
+	}
+}
+
+async function openQueue(row: any) {
+	queueDrawer.visible = true;
+	queueDrawer.loading = true;
+	queueDrawer.title = `队列运行情况：${row.importNo}`;
+	queueDrawer.currentImportId = row.id;
+	queueDrawer.activeKey = 'importPrompt';
+	try {
+		await reloadQueueStats();
+	} finally {
+		queueDrawer.loading = false;
+	}
+}
+
+async function reloadQueueStats() {
+	if (!queueDrawer.currentImportId) {
+		return;
+	}
+	queueDrawer.loading = true;
+	try {
+		const res: any = await podGenerationImportService.queueStats({
+			id: queueDrawer.currentImportId
+		});
+		queueDrawer.queues = res?.queues || [];
+		queueDrawer.staleMinutes = res?.staleMinutes || 10;
+		if (!queueDrawer.queues.some(item => item.key === queueDrawer.activeKey)) {
+			queueDrawer.activeKey = queueDrawer.queues[0]?.key || 'importPrompt';
+		}
+	} catch (err: any) {
+		ElMessage.error(err?.message || '加载队列运行情况失败');
+	} finally {
+		queueDrawer.loading = false;
 	}
 }
 
@@ -548,6 +722,70 @@ function goBatch(id: number) {
 	display: flex;
 	justify-content: flex-end;
 	margin-top: 12px;
+}
+
+.queue-panel {
+	min-height: 420px;
+}
+
+.queue-summary {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 14px;
+}
+
+.queue-card {
+	min-height: 132px;
+	padding: 14px;
+	border: 1px solid var(--el-border-color);
+	border-radius: 6px;
+	background: var(--el-fill-color-blank);
+	cursor: pointer;
+	transition:
+		border-color 0.16s ease,
+		background-color 0.16s ease;
+}
+
+.queue-card.active {
+	border-color: var(--el-color-primary);
+	background: var(--el-color-primary-light-9);
+}
+
+.queue-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	font-weight: 600;
+}
+
+.queue-card__total {
+	margin-top: 12px;
+	font-size: 28px;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.queue-card__stats {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 6px 10px;
+	margin-top: 12px;
+	color: var(--el-text-color-secondary);
+	font-size: 12px;
+}
+
+.queue-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.stale-tag {
+	margin-left: 6px;
 }
 
 .empty-text {

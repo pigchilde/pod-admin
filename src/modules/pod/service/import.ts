@@ -20,6 +20,13 @@ class PodGenerationImportService extends BaseService {
 		});
 	}
 
+	queueStats(params: any) {
+		return this.request({
+			url: '/queueStats',
+			params
+		});
+	}
+
 	retryRow(data: any) {
 		return this.request({
 			url: '/retryRow',
