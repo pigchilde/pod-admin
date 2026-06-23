@@ -3,7 +3,12 @@
 		<cl-row>
 			<cl-refresh-btn />
 			<cl-flex1 />
-			<cl-select :options="options.status" prop="status" :width="140" placeholder="导入状态" />
+			<cl-select
+				:options="options.status"
+				prop="status"
+				:width="140"
+				placeholder="导入状态"
+			/>
 			<cl-search-key placeholder="搜索导入编号 / 文件名 / 错误" />
 		</cl-row>
 
@@ -31,11 +36,20 @@
 
 		<el-drawer v-model="drawer.visible" :title="drawer.title" size="960px">
 			<div class="drawer-toolbar">
-				<el-button type="warning" :loading="drawer.actionLoading" @click="repairCurrentImport">
+				<el-button
+					type="warning"
+					:loading="drawer.actionLoading"
+					@click="repairCurrentImport"
+				>
 					继续处理 / 修复失败项
 				</el-button>
 			</div>
-			<el-table v-loading="drawer.loading" :data="drawer.rows" border height="calc(100vh - 285px)">
+			<el-table
+				v-loading="drawer.loading"
+				:data="drawer.rows"
+				border
+				height="calc(100vh - 285px)"
+			>
 				<el-table-column prop="rowNo" label="行号" width="72" />
 				<el-table-column prop="topic" label="主题" min-width="180" show-overflow-tooltip />
 				<el-table-column prop="count" label="数量" width="72" />
@@ -56,7 +70,11 @@
 				</el-table-column>
 				<el-table-column prop="batchStatus" label="批次状态" width="110">
 					<template #default="{ row }">
-						<el-tag v-if="row.batchStatus" :type="batchStatusType(row.batchStatus)" effect="plain">
+						<el-tag
+							v-if="row.batchStatus"
+							:type="batchStatusType(row.batchStatus)"
+							effect="plain"
+						>
 							{{ batchStatusText(row.batchStatus) }}
 						</el-tag>
 						<span v-else class="empty-text">-</span>
@@ -64,7 +82,10 @@
 				</el-table-column>
 				<el-table-column prop="batchProgress" label="图片进度" width="120">
 					<template #default="{ row }">
-						<span v-if="row.batchId">{{ row.batchSuccessCount || 0 }} / {{ row.batchCount || row.count || 0 }}</span>
+						<span v-if="row.batchId"
+							>{{ row.batchSuccessCount || 0 }} /
+							{{ row.batchCount || row.count || 0 }}</span
+						>
 						<span v-else class="empty-text">-</span>
 					</template>
 				</el-table-column>
@@ -81,7 +102,11 @@
 								检查 {{ row.verifyFailedCount }}
 							</el-text>
 							<span
-								v-if="!row.cutoutFailedCount && !row.mockupFailedCount && !row.verifyFailedCount"
+								v-if="
+									!row.cutoutFailedCount &&
+									!row.mockupFailedCount &&
+									!row.verifyFailedCount
+								"
 								class="empty-text"
 							>
 								无
