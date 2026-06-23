@@ -263,7 +263,7 @@ function onImportSubmit(data: { list: any[]; filename?: string }, { done, close 
 	}
 
 	const totalImages = rows.reduce((sum, row) => sum + Number(row?.数量 || row?.count || row?.生成数量 || 0), 0);
-	const message = `将保存 ${rows.length} 行导入记录，并按行号顺序自动生成提示词和图片，预计 ${totalImages} 张图片。是否继续？`;
+	const message = `将保存 ${rows.length} 行导入记录，并进入后台流水线队列生成提示词和图片，预计 ${totalImages} 张图片。是否继续？`;
 
 	ElMessageBox.confirm(message, '导入确认', { type: 'warning' })
 		.then(() =>
