@@ -136,7 +136,6 @@ const options = reactive({
 	status: [
 		{ label: '待生成', value: 'pending', type: 'info' },
 		{ label: '生成中', value: 'running', type: 'primary' },
-		{ label: '抠图中', value: 'cutout_running', type: 'primary' },
 		{ label: '成功', value: 'success', type: 'success' },
 		{ label: '失败', value: 'failed', type: 'danger' }
 	],
@@ -205,7 +204,7 @@ const Table = useTable({
 					{
 						label: '生成效果图',
 						type: 'success',
-						hidden: !scope.row.imageUrl || scope.row.status === 'running' || scope.row.status === 'cutout_running',
+						hidden: !scope.row.imageUrl || scope.row.status === 'running' || scope.row.mockupStatus === 'running',
 						onClick() {
 							generateMockupItem(scope.row);
 						}

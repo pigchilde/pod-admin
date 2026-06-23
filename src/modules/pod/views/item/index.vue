@@ -202,7 +202,7 @@ const Crud = useCrud(
 );
 
 const isGenerating = (row: any) => row.status === 'running';
-const isCutoutRunning = (row: any) => row.status === 'cutout_running';
+const isCutoutRunning = (row: any) => row.cutoutStatus === 'running';
 const isBusy = (row: any) => isGenerating(row) || isCutoutRunning(row);
 const canOperateImage = (row: any) => row.promptStatus === 'approved' && !isBusy(row);
 const canCutoutRow = (row: any) => Boolean(row.imageUrl) && canOperateImage(row);

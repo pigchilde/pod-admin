@@ -311,6 +311,7 @@ function batchStatusText(status: string) {
 			prompt_generating: '生成提示词',
 			prompt_ready: '待确认',
 			image_generating: '生成图片',
+			post_processing: '后处理',
 			completed: '已完成',
 			partial_failed: '后处理未完成',
 			failed: '失败'
@@ -324,6 +325,7 @@ function batchStatusType(status: string) {
 			prompt_generating: 'primary',
 			prompt_ready: 'warning',
 			image_generating: 'primary',
+			post_processing: 'primary',
 			completed: 'success',
 			partial_failed: 'warning',
 			failed: 'danger'

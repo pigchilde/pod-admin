@@ -3,7 +3,6 @@ export function imageStatusText(status: string) {
 		{
 			pending: '待生成',
 			running: '生成中',
-			cutout_running: '抠图中',
 			success: '成功',
 			failed: '失败'
 		} as Record<string, string>
@@ -15,7 +14,6 @@ export function imageStatusType(status: string) {
 		{
 			pending: 'info',
 			running: 'primary',
-			cutout_running: 'primary',
 			success: 'success',
 			failed: 'danger'
 		} as Record<string, any>
