@@ -209,7 +209,7 @@
 					<el-text type="info">
 						stale 阈值 {{ queueDrawer.staleMinutes || 10 }} 分钟，列表优先显示运行中、失败、待处理项
 					</el-text>
-					<el-button :loading="queueDrawer.loading" @click="reloadQueueStats">刷新</el-button>
+					<el-button :loading="queueDrawer.loading" @click="reloadQueueStats()">刷新</el-button>
 				</div>
 
 				<el-table :data="activeQueueItems" border height="calc(100vh - 430px)">
@@ -264,7 +264,7 @@ defineOptions({
 
 import { useCrud, useTable } from '@cool-vue/crud';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { computed, reactive } from 'vue';
+import { computed, onBeforeUnmount, reactive, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { podGenerationImportService } from '../../service/import';
 
@@ -304,6 +304,9 @@ const queueDrawer = reactive({
 	staleMinutes: 10,
 	queues: [] as any[]
 });
+
+let queueRefreshTimer: ReturnType<typeof window.setInterval> | undefined;
+let queueStatsRequesting = false;
 
 const Crud = useCrud(
 	{
@@ -503,11 +506,11 @@ async function openRows(row: any) {
 }
 
 async function openQueue(row: any) {
-	queueDrawer.visible = true;
 	queueDrawer.loading = true;
 	queueDrawer.title = `队列运行情况：${row.importNo}`;
 	queueDrawer.currentImportId = row.id;
 	queueDrawer.activeKey = 'importPrompt';
+	queueDrawer.visible = true;
 	try {
 		await reloadQueueStats();
 	} finally {
@@ -515,11 +518,17 @@ async function openQueue(row: any) {
 	}
 }
 
-async function reloadQueueStats() {
+async function reloadQueueStats(showLoading = true) {
 	if (!queueDrawer.currentImportId) {
 		return;
 	}
-	queueDrawer.loading = true;
+	if (queueStatsRequesting) {
+		return;
+	}
+	queueStatsRequesting = true;
+	if (showLoading) {
+		queueDrawer.loading = true;
+	}
 	try {
 		const res: any = await podGenerationImportService.queueStats({
 			id: queueDrawer.currentImportId
@@ -532,7 +541,26 @@ async function reloadQueueStats() {
 	} catch (err: any) {
 		ElMessage.error(err?.message || '加载队列运行情况失败');
 	} finally {
-		queueDrawer.loading = false;
+		if (showLoading) {
+			queueDrawer.loading = false;
+		}
+		queueStatsRequesting = false;
+	}
+}
+
+function startQueueAutoRefresh() {
+	stopQueueAutoRefresh();
+	queueRefreshTimer = window.setInterval(() => {
+		if (queueDrawer.visible && queueDrawer.currentImportId) {
+			reloadQueueStats(false);
+		}
+	}, 5000);
+}
+
+function stopQueueAutoRefresh() {
+	if (queueRefreshTimer) {
+		window.clearInterval(queueRefreshTimer);
+		queueRefreshTimer = undefined;
 	}
 }
 
@@ -705,6 +733,21 @@ async function runImportAction(
 function goBatch(id: number) {
 	router.push(`/pod/generation/detail/${id}`);
 }
+
+watch(
+	() => queueDrawer.visible,
+	visible => {
+		if (visible) {
+			startQueueAutoRefresh();
+		} else {
+			stopQueueAutoRefresh();
+		}
+	}
+);
+
+onBeforeUnmount(() => {
+	stopQueueAutoRefresh();
+});
 </script>
 
 <style lang="scss" scoped>
