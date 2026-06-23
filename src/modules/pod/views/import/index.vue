@@ -38,7 +38,8 @@
 			<div class="drawer-toolbar">
 				<el-button
 					type="warning"
-					:loading="drawer.actionLoading"
+					:loading="drawer.bulkActionLoading"
+					:disabled="Boolean(drawer.rowActionKey)"
 					@click="repairCurrentImport"
 				>
 					继续处理 / 修复失败项
@@ -58,6 +59,14 @@
 						<el-tag :type="rowStatusType(row.status)" effect="plain">
 							{{ rowStatusText(row.status) }}
 						</el-tag>
+					</template>
+				</el-table-column>
+				<el-table-column prop="batchId" label="批次ID" width="90">
+					<template #default="{ row }">
+						<el-link v-if="row.batchId" type="primary" @click="goBatch(row.batchId)">
+							{{ row.batchId }}
+						</el-link>
+						<span v-else class="empty-text">-</span>
 					</template>
 				</el-table-column>
 				<el-table-column prop="batchNo" label="批次" min-width="180" show-overflow-tooltip>
@@ -89,14 +98,20 @@
 						<span v-else class="empty-text">-</span>
 					</template>
 				</el-table-column>
-				<el-table-column prop="postProcessFailed" label="后处理失败" width="190">
+				<el-table-column prop="postProcessStatus" label="后处理状态" width="260">
 					<template #default="{ row }">
 						<template v-if="row.batchId">
 							<el-text v-if="row.cutoutFailedCount" type="danger" class="failed">
-								抠图 {{ row.cutoutFailedCount }}
+								抠图失败 {{ row.cutoutFailedCount }}
+							</el-text>
+							<el-text v-if="row.cutoutPendingCount" type="warning" class="failed">
+								抠图未完成 {{ row.cutoutPendingCount }}
 							</el-text>
 							<el-text v-if="row.mockupFailedCount" type="danger" class="failed">
-								效果图 {{ row.mockupFailedCount }}
+								效果图失败 {{ row.mockupFailedCount }}
+							</el-text>
+							<el-text v-if="row.mockupMissingCount" type="warning" class="failed">
+								效果图缺失 {{ row.mockupMissingCount }}
 							</el-text>
 							<el-text v-if="row.verifyFailedCount" type="danger" class="failed">
 								检查 {{ row.verifyFailedCount }}
@@ -104,7 +119,9 @@
 							<span
 								v-if="
 									!row.cutoutFailedCount &&
+									!row.cutoutPendingCount &&
 									!row.mockupFailedCount &&
+									!row.mockupMissingCount &&
 									!row.verifyFailedCount
 								"
 								class="empty-text"
@@ -122,7 +139,8 @@
 							v-if="!row.batchId && ['failed', 'pending'].includes(row.status)"
 							link
 							type="primary"
-							:loading="drawer.actionLoading"
+							:loading="isRowActionLoading(row, 'retry')"
+							:disabled="isRowActionDisabled(row, 'retry')"
 							@click="retryRow(row)"
 						>
 							处理本行
@@ -131,7 +149,8 @@
 							v-else-if="row.batchId"
 							link
 							type="warning"
-							:loading="drawer.actionLoading"
+							:loading="isRowActionLoading(row, 'repair')"
+							:disabled="isRowActionDisabled(row, 'repair')"
 							@click="repairRow(row)"
 						>
 							修复批次
@@ -182,7 +201,8 @@ const options = reactive({
 const drawer = reactive({
 	visible: false,
 	loading: false,
-	actionLoading: false,
+	bulkActionLoading: false,
+	rowActionKey: '',
 	title: '',
 	currentImportId: 0,
 	pagination: {
@@ -292,7 +312,7 @@ function batchStatusText(status: string) {
 			prompt_ready: '待确认',
 			image_generating: '生成图片',
 			completed: '已完成',
-			partial_failed: '部分失败',
+			partial_failed: '后处理未完成',
 			failed: '失败'
 		} as Record<string, string>
 	)[status || 'prompt_ready'];
@@ -377,18 +397,40 @@ async function handleRowsSizeChange(size: number) {
 }
 
 async function retryRow(row: any) {
+	const actionKey = getRowActionKey(row, 'retry');
 	await runImportAction(
 		`确定处理第 ${row.rowNo} 行？系统会自动生成提示词并生图。`,
 		() => podGenerationImportService.retryRow({ id: row.id }),
-		'处理完成'
+		'处理完成',
+		{
+			start: () => {
+				drawer.rowActionKey = actionKey;
+			},
+			end: () => {
+				if (drawer.rowActionKey === actionKey) {
+					drawer.rowActionKey = '';
+				}
+			}
+		}
 	);
 }
 
 async function repairRow(row: any) {
+	const actionKey = getRowActionKey(row, 'repair');
 	await runImportAction(
 		`确定修复第 ${row.rowNo} 行关联批次的失败项？`,
 		() => podGenerationImportService.repairRow({ id: row.id }),
-		'修复完成'
+		'修复完成',
+		{
+			start: () => {
+				drawer.rowActionKey = actionKey;
+			},
+			end: () => {
+				if (drawer.rowActionKey === actionKey) {
+					drawer.rowActionKey = '';
+				}
+			}
+		}
 	);
 }
 
@@ -432,17 +474,46 @@ async function repairCurrentImport() {
 	await runImportAction(
 		'确定继续处理并修复当前导入记录的异常项？',
 		() => podGenerationImportService.repairImport({ id: drawer.currentImportId }),
-		'修复完成'
+		'修复完成',
+		{
+			start: () => {
+				drawer.bulkActionLoading = true;
+			},
+			end: () => {
+				drawer.bulkActionLoading = false;
+			}
+		}
 	);
 }
 
-async function runImportAction(message: string, action: () => Promise<any>, successText: string) {
+function getRowActionKey(row: any, action: 'retry' | 'repair') {
+	return `${action}:${row.id}`;
+}
+
+function isRowActionLoading(row: any, action: 'retry' | 'repair') {
+	return drawer.rowActionKey === getRowActionKey(row, action);
+}
+
+function isRowActionDisabled(row: any, action: 'retry' | 'repair') {
+	const actionKey = getRowActionKey(row, action);
+	return drawer.bulkActionLoading || Boolean(drawer.rowActionKey && drawer.rowActionKey !== actionKey);
+}
+
+async function runImportAction(
+	message: string,
+	action: () => Promise<any>,
+	successText: string,
+	loading?: {
+		start: () => void;
+		end: () => void;
+	}
+) {
 	try {
 		await ElMessageBox.confirm(message, '提示', { type: 'warning' });
 	} catch {
 		return;
 	}
-	drawer.actionLoading = true;
+	loading?.start();
 	try {
 		await action();
 		ElMessage.success(successText);
@@ -451,7 +522,7 @@ async function runImportAction(message: string, action: () => Promise<any>, succ
 	} catch (err: any) {
 		ElMessage.error(err?.message || '操作失败');
 	} finally {
-		drawer.actionLoading = false;
+		loading?.end();
 	}
 }
 
