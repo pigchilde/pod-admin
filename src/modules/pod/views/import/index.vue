@@ -208,6 +208,7 @@
 							<span>运行中 {{ queue.running || 0 }}</span>
 							<span>成功 {{ queue.success || 0 }}</span>
 							<span>失败 {{ queue.failed || 0 }}</span>
+							<span v-if="queue.waitingCutout">等抠图 {{ queue.waitingCutout }}</span>
 							<span v-if="queue.skipped">跳过 {{ queue.skipped }}</span>
 						</div>
 					</div>
@@ -786,6 +787,9 @@ async function runImportAction(
 		await action();
 		ElMessage.success(successText);
 		await reloadRows();
+		if (queueDrawer.visible && queueDrawer.currentImportId) {
+			await reloadQueueStats(false);
+		}
 		Crud.value?.refresh();
 	} catch (err: any) {
 		ElMessage.error(err?.message || '操作失败');
