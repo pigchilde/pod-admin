@@ -42,20 +42,10 @@
 			<cl-pagination />
 		</cl-row>
 
-		<el-drawer v-model="drawer.visible" :title="drawer.title" size="960px">
-			<div class="drawer-toolbar">
-				<el-button
-					type="warning"
-					:loading="drawer.bulkActionLoading"
-					:disabled="Boolean(drawer.rowActionKey)"
-					@click="repairCurrentImport"
-				>
-					继续处理 / 修复失败项
-				</el-button>
-			</div>
-			<el-table
-				v-loading="drawer.loading"
-				:data="drawer.rows"
+			<el-drawer v-model="drawer.visible" :title="drawer.title" size="960px">
+				<el-table
+					v-loading="drawer.loading"
+					:data="drawer.rows"
 				border
 				height="calc(100vh - 285px)"
 			>
@@ -150,22 +140,12 @@
 							:loading="isRowActionLoading(row, 'retry')"
 							:disabled="isRowActionDisabled(row, 'retry')"
 							@click="retryRow(row)"
-						>
-							处理本行
-						</el-button>
-						<el-button
-							v-else-if="row.batchId"
-							link
-							type="warning"
-							:loading="isRowActionLoading(row, 'repair')"
-							:disabled="isRowActionDisabled(row, 'repair')"
-							@click="repairRow(row)"
-						>
-							修复批次
-						</el-button>
-						<span v-else class="empty-text">-</span>
-					</template>
-				</el-table-column>
+							>
+								处理本行
+							</el-button>
+							<span v-else class="empty-text">-</span>
+						</template>
+					</el-table-column>
 			</el-table>
 			<div class="drawer-pagination">
 				<el-pagination
@@ -216,21 +196,13 @@
 				</div>
 
 				<div class="queue-toolbar">
-					<el-text type="info">
-						stale 阈值 {{ queueDrawer.staleMinutes || 10 }} 分钟，列表优先显示运行中、失败、待处理项
-					</el-text>
-					<div class="queue-toolbar__actions">
-						<el-button
-							type="warning"
-							:loading="queueDrawer.bulkRepairLoading"
-							:disabled="queueDrawer.repairing"
-							@click="repairCurrentQueue"
-						>
-							修复当前队列
-						</el-button>
-						<el-button :loading="queueDrawer.loading" :disabled="queueDrawer.repairing" @click="reloadQueueStats()">
-							刷新
-						</el-button>
+						<el-text type="info">
+							stale 阈值 {{ queueDrawer.staleMinutes || 10 }} 分钟，列表优先显示运行中、失败、待处理项
+						</el-text>
+						<div class="queue-toolbar__actions">
+							<el-button :loading="queueDrawer.loading" :disabled="queueDrawer.repairing" @click="reloadQueueStats()">
+								刷新
+							</el-button>
 					</div>
 				</div>
 
@@ -267,37 +239,15 @@
 					</el-table-column>
 					<el-table-column prop="topic" label="主题" min-width="220" show-overflow-tooltip />
 					<el-table-column prop="updateTime" label="更新时间" width="170" />
-					<el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip>
-						<template #default="{ row }">
-							<span v-if="row.error">{{ row.error }}</span>
-							<span v-else class="empty-text">-</span>
-						</template>
-					</el-table-column>
-					<el-table-column label="操作" width="130" fixed="right">
-						<template #default="{ row }">
-							<el-tooltip
-								v-if="row.blocked && row.blockReason"
-								:content="row.blockReason"
-								placement="top"
-							>
-								<el-button link type="info" disabled>修复</el-button>
-							</el-tooltip>
-							<el-button
-								v-else-if="row.repairable"
-								link
-								type="primary"
-								:loading="isQueueItemRepairing(row)"
-								:disabled="isQueueItemRepairDisabled(row)"
-								@click="repairQueueItem(row)"
-							>
-								修复
-							</el-button>
-							<span v-else class="empty-text">-</span>
-						</template>
-					</el-table-column>
-				</el-table>
-			</div>
-		</el-drawer>
+						<el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip>
+							<template #default="{ row }">
+								<span v-if="row.error">{{ row.error }}</span>
+								<span v-else class="empty-text">-</span>
+							</template>
+						</el-table-column>
+					</el-table>
+				</div>
+			</el-drawer>
 	</cl-crud>
 </template>
 
@@ -391,22 +341,15 @@ const Table = useTable({
 						openRows(scope.row);
 					}
 				},
-				{
-					label: '队列',
-					type: 'success',
-					onClick({ scope }) {
-						openQueue(scope.row);
-					}
-				},
-				{
-					label: '修复',
-					type: 'warning',
-					onClick({ scope }) {
-						repairImport(scope.row);
-					}
-				},
-				{
-					label: '删除',
+					{
+						label: '队列',
+						type: 'success',
+						onClick({ scope }) {
+							openQueue(scope.row);
+						}
+					},
+					{
+						label: '删除',
 					type: 'danger',
 					onClick({ scope }) {
 						removeImport(scope.row);
