@@ -42,23 +42,23 @@
 			<cl-pagination />
 		</cl-row>
 
-			<el-drawer v-model="drawer.visible" :title="drawer.title" size="960px">
-				<div class="drawer-toolbar">
-					<el-button
-						type="warning"
-						:loading="drawer.bulkActionLoading"
-						:disabled="Boolean(drawer.rowActionKey)"
-						@click="repairCurrentImport"
-					>
-						继续处理 / 修复失败项
-					</el-button>
-				</div>
-				<el-table
-					v-loading="drawer.loading"
-					:data="drawer.rows"
-					border
-					height="calc(100vh - 285px)"
+		<el-drawer v-model="drawer.visible" :title="drawer.title" size="960px">
+			<div class="drawer-toolbar">
+				<el-button
+					type="warning"
+					:loading="drawer.bulkActionLoading"
+					:disabled="Boolean(drawer.rowActionKey)"
+					@click="repairCurrentImport"
 				>
+					继续处理 / 修复失败项
+				</el-button>
+			</div>
+			<el-table
+				v-loading="drawer.loading"
+				:data="drawer.rows"
+				border
+				height="calc(100vh - 285px)"
+			>
 				<el-table-column prop="rowNo" label="行号" width="72" />
 				<el-table-column prop="topic" label="主题" min-width="180" show-overflow-tooltip />
 				<el-table-column prop="count" label="数量" width="72" />
@@ -147,25 +147,25 @@
 							v-if="!row.batchId && ['failed', 'pending'].includes(row.status)"
 							link
 							type="primary"
-								:loading="isRowActionLoading(row, 'retry')"
-								:disabled="isRowActionDisabled(row, 'retry')"
-								@click="retryRow(row)"
-							>
-								处理本行
-							</el-button>
-							<el-button
-								v-else-if="row.batchId"
-								link
-								type="warning"
-								:loading="isRowActionLoading(row, 'repair')"
-								:disabled="isRowActionDisabled(row, 'repair')"
-								@click="repairRow(row)"
-							>
-								修复批次
-							</el-button>
-							<span v-else class="empty-text">-</span>
-						</template>
-					</el-table-column>
+							:loading="isRowActionLoading(row, 'retry')"
+							:disabled="isRowActionDisabled(row, 'retry')"
+							@click="retryRow(row)"
+						>
+							处理本行
+						</el-button>
+						<el-button
+							v-else-if="row.batchId"
+							link
+							type="warning"
+							:loading="isRowActionLoading(row, 'repair')"
+							:disabled="isRowActionDisabled(row, 'repair')"
+							@click="repairRow(row)"
+						>
+							修复批次
+						</el-button>
+						<span v-else class="empty-text">-</span>
+					</template>
+				</el-table-column>
 			</el-table>
 			<div class="drawer-pagination">
 				<el-pagination
@@ -213,26 +213,34 @@
 							<span v-if="queue.blocked">阻塞 {{ queue.blocked }}</span>
 						</div>
 					</div>
-					</div>
+				</div>
 
-					<div class="queue-toolbar">
-						<el-text type="info">
-							stale 阈值 {{ queueDrawer.staleMinutes || 10 }} 分钟，列表优先显示运行中、失败、待处理项
-						</el-text>
-						<div class="queue-toolbar__actions">
-							<el-button
-								type="warning"
-								:loading="queueDrawer.bulkRepairLoading"
-								:disabled="queueDrawer.repairing"
-								@click="repairCurrentQueue"
-							>
-								修复当前队列
-							</el-button>
-							<el-button :loading="queueDrawer.loading" :disabled="queueDrawer.repairing" @click="reloadQueueStats()">
-								刷新
-							</el-button>
-						</div>
+				<div class="queue-toolbar">
+					<el-text type="info">
+						stale 阈值
+						{{
+							queueDrawer.staleMinutes || 10
+						}}
+						分钟，列表优先显示运行中、失败、待处理项
+					</el-text>
+					<div class="queue-toolbar__actions">
+						<el-button
+							type="warning"
+							:loading="queueDrawer.bulkRepairLoading"
+							:disabled="queueDrawer.repairing"
+							@click="repairCurrentQueue"
+						>
+							修复当前队列
+						</el-button>
+						<el-button
+							:loading="queueDrawer.loading"
+							:disabled="queueDrawer.repairing"
+							@click="reloadQueueStats()"
+						>
+							刷新
+						</el-button>
 					</div>
+				</div>
 
 				<el-table :data="activeQueueItems" border height="calc(100vh - 430px)">
 					<el-table-column prop="rowNo" label="行号" width="72">
@@ -243,7 +251,11 @@
 					</el-table-column>
 					<el-table-column prop="batchId" label="批次ID" width="90">
 						<template #default="{ row }">
-							<el-link v-if="row.batchId" type="primary" @click="goBatch(row.batchId)">
+							<el-link
+								v-if="row.batchId"
+								type="primary"
+								@click="goBatch(row.batchId)"
+							>
 								{{ row.batchId }}
 							</el-link>
 							<span v-else class="empty-text">-</span>
@@ -265,39 +277,49 @@
 							</el-tag>
 						</template>
 					</el-table-column>
-						<el-table-column prop="topic" label="主题" min-width="220" show-overflow-tooltip />
-						<el-table-column prop="updateTime" label="更新时间" width="170" />
-						<el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip>
-							<template #default="{ row }">
-								<span v-if="row.error">{{ row.error }}</span>
-								<span v-else class="empty-text">-</span>
-							</template>
-						</el-table-column>
-						<el-table-column label="操作" width="130" fixed="right">
-							<template #default="{ row }">
-								<el-tooltip
-									v-if="row.blocked && row.blockReason"
-									:content="row.blockReason"
-									placement="top"
-								>
-									<el-button link type="info" disabled>修复</el-button>
-								</el-tooltip>
-								<el-button
-									v-else-if="row.repairable"
-									link
-									type="primary"
-									:loading="isQueueItemRepairing(row)"
-									:disabled="isQueueItemRepairDisabled(row)"
-									@click="repairQueueItem(row)"
-								>
-									修复
-								</el-button>
-								<span v-else class="empty-text">-</span>
-							</template>
-						</el-table-column>
-					</el-table>
-				</div>
-			</el-drawer>
+					<el-table-column
+						prop="topic"
+						label="主题"
+						min-width="220"
+						show-overflow-tooltip
+					/>
+					<el-table-column prop="updateTime" label="更新时间" width="170" />
+					<el-table-column
+						prop="error"
+						label="错误"
+						min-width="220"
+						show-overflow-tooltip
+					>
+						<template #default="{ row }">
+							<span v-if="row.error">{{ row.error }}</span>
+							<span v-else class="empty-text">-</span>
+						</template>
+					</el-table-column>
+					<el-table-column label="操作" width="130" fixed="right">
+						<template #default="{ row }">
+							<el-tooltip
+								v-if="row.blocked && row.blockReason"
+								:content="row.blockReason"
+								placement="top"
+							>
+								<el-button link type="info" disabled>修复</el-button>
+							</el-tooltip>
+							<el-button
+								v-else-if="row.repairable"
+								link
+								type="primary"
+								:loading="isQueueItemRepairing(row)"
+								:disabled="isQueueItemRepairDisabled(row)"
+								@click="repairQueueItem(row)"
+							>
+								修复
+							</el-button>
+							<span v-else class="empty-text">-</span>
+						</template>
+					</el-table-column>
+				</el-table>
+			</div>
+		</el-drawer>
 	</cl-crud>
 </template>
 
@@ -391,15 +413,15 @@ const Table = useTable({
 						openRows(scope.row);
 					}
 				},
-					{
-						label: '队列',
-						type: 'success',
-						onClick({ scope }) {
-							openQueue(scope.row);
-						}
-					},
-					{
-						label: '删除',
+				{
+					label: '队列',
+					type: 'success',
+					onClick({ scope }) {
+						openQueue(scope.row);
+					}
+				},
+				{
+					label: '删除',
 					type: 'danger',
 					onClick({ scope }) {
 						removeImport(scope.row);
@@ -423,7 +445,10 @@ function onImportSubmit(data: { list: any[]; filename?: string }, { done, close 
 		return ElMessage.error('表格中没有可创建的主题和数量');
 	}
 
-	const totalImages = rows.reduce((sum, row) => sum + Number(row?.数量 || row?.count || row?.生成数量 || 0), 0);
+	const totalImages = rows.reduce(
+		(sum, row) => sum + Number(row?.数量 || row?.count || row?.生成数量 || 0),
+		0
+	);
 	const message = `将保存 ${rows.length} 行导入记录，并进入后台流水线队列生成提示词和图片，预计 ${totalImages} 张图片。是否继续？`;
 
 	ElMessageBox.confirm(message, '导入确认', { type: 'warning' })
@@ -438,7 +463,9 @@ function onImportSubmit(data: { list: any[]; filename?: string }, { done, close 
 			const queued = res?.queued || 0;
 			const importText = res?.importNo ? `，导入编号 ${res.importNo}` : '';
 			if (failed) {
-				ElMessage.warning(`已保存 ${queued} 行并进入执行队列，${failed} 行格式校验失败${importText}`);
+				ElMessage.warning(
+					`已保存 ${queued} 行并进入执行队列，${failed} 行格式校验失败${importText}`
+				);
 				const details = (res?.results || [])
 					.filter((item: any) => item.status === 'failed')
 					.map((item: any) => `第 ${item.rowNo} 行：${item.error}`)
@@ -650,11 +677,7 @@ function startQueueAutoRefresh() {
 	stopQueueAutoRefresh();
 	queueRefreshTimer = window.setInterval(() => {
 		// 修复进行中暂停自动刷新，避免覆盖正在 loading 的行状态
-		if (
-			queueDrawer.visible &&
-			queueDrawer.currentImportId &&
-			!queueDrawer.repairing
-		) {
+		if (queueDrawer.visible && queueDrawer.currentImportId && !queueDrawer.repairing) {
 			reloadQueueStats(false);
 		}
 	}, 5000);
@@ -803,7 +826,10 @@ function isRowActionLoading(row: any, action: 'retry' | 'repair') {
 
 function isRowActionDisabled(row: any, action: 'retry' | 'repair') {
 	const actionKey = getRowActionKey(row, action);
-	return drawer.bulkActionLoading || Boolean(drawer.rowActionKey && drawer.rowActionKey !== actionKey);
+	return (
+		drawer.bulkActionLoading ||
+		Boolean(drawer.rowActionKey && drawer.rowActionKey !== actionKey)
+	);
 }
 
 async function runImportAction(
@@ -837,10 +863,7 @@ async function runImportAction(
 }
 
 function isQueueItemRepairing(row: any) {
-	return (
-		queueDrawer.repairing &&
-		queueDrawer.repairingItemId === row.id
-	);
+	return queueDrawer.repairing && queueDrawer.repairingItemId === row.id;
 }
 
 function isQueueItemRepairDisabled(row: any) {
@@ -858,11 +881,9 @@ async function repairQueueItem(row: any) {
 		return;
 	}
 	try {
-		await ElMessageBox.confirm(
-			`确定修复「${queueDrawer.activeKey}」队列该项？`,
-			'提示',
-			{ type: 'warning' }
-		);
+		await ElMessageBox.confirm(`确定修复「${queueDrawer.activeKey}」队列该项？`, '提示', {
+			type: 'warning'
+		});
 	} catch {
 		return;
 	}
@@ -899,9 +920,7 @@ async function repairCurrentQueue() {
 	if (!queueDrawer.currentImportId) {
 		return;
 	}
-	const queue = queueDrawer.queues.find(
-		(item: any) => item.key === queueDrawer.activeKey
-	);
+	const queue = queueDrawer.queues.find((item: any) => item.key === queueDrawer.activeKey);
 	const queueName = queue?.name || queueDrawer.activeKey;
 	try {
 		await ElMessageBox.confirm(
@@ -925,17 +944,11 @@ async function repairCurrentQueue() {
 		const failed = Number(res?.failed || 0);
 		const total = Number(res?.total || 0);
 		if (failed) {
-			ElMessage.warning(
-				`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}，失败 ${failed}`
-			);
+			ElMessage.warning(`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}，失败 ${failed}`);
 		} else if (repaired) {
-			ElMessage.success(
-				`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}`
-			);
+			ElMessage.success(`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}`);
 		} else {
-			ElMessage.info(
-				`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}`
-			);
+			ElMessage.info(`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}`);
 		}
 		await reloadQueueStats(false);
 		Crud.value?.refresh();
