@@ -71,6 +71,24 @@ class PodGenerationImportService extends BaseService {
 			timeout: 600000
 		});
 	}
+
+	repairQueueItem(data: any) {
+		return this.request({
+			url: '/repairQueueItem',
+			method: 'POST',
+			data,
+			timeout: 300000
+		});
+	}
+
+	repairQueue(data: any) {
+		return this.request({
+			url: '/repairQueue',
+			method: 'POST',
+			data,
+			timeout: 600000
+		});
+	}
 }
 
 export const podGenerationImportService = new PodGenerationImportService();

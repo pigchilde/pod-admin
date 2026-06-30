@@ -210,6 +210,7 @@
 							<span>失败 {{ queue.failed || 0 }}</span>
 							<span v-if="queue.waitingCutout">等抠图 {{ queue.waitingCutout }}</span>
 							<span v-if="queue.skipped">跳过 {{ queue.skipped }}</span>
+							<span v-if="queue.blocked">阻塞 {{ queue.blocked }}</span>
 						</div>
 					</div>
 				</div>
@@ -218,7 +219,19 @@
 					<el-text type="info">
 						stale 阈值 {{ queueDrawer.staleMinutes || 10 }} 分钟，列表优先显示运行中、失败、待处理项
 					</el-text>
-					<el-button :loading="queueDrawer.loading" @click="reloadQueueStats()">刷新</el-button>
+					<div class="queue-toolbar__actions">
+						<el-button
+							type="warning"
+							:loading="queueDrawer.bulkRepairLoading"
+							:disabled="queueDrawer.repairing"
+							@click="repairCurrentQueue"
+						>
+							修复当前队列
+						</el-button>
+						<el-button :loading="queueDrawer.loading" :disabled="queueDrawer.repairing" @click="reloadQueueStats()">
+							刷新
+						</el-button>
+					</div>
 				</div>
 
 				<el-table :data="activeQueueItems" border height="calc(100vh - 430px)">
@@ -257,6 +270,28 @@
 					<el-table-column prop="error" label="错误" min-width="220" show-overflow-tooltip>
 						<template #default="{ row }">
 							<span v-if="row.error">{{ row.error }}</span>
+							<span v-else class="empty-text">-</span>
+						</template>
+					</el-table-column>
+					<el-table-column label="操作" width="130" fixed="right">
+						<template #default="{ row }">
+							<el-tooltip
+								v-if="row.blocked && row.blockReason"
+								:content="row.blockReason"
+								placement="top"
+							>
+								<el-button link type="info" disabled>修复</el-button>
+							</el-tooltip>
+							<el-button
+								v-else-if="row.repairable"
+								link
+								type="primary"
+								:loading="isQueueItemRepairing(row)"
+								:disabled="isQueueItemRepairDisabled(row)"
+								@click="repairQueueItem(row)"
+							>
+								修复
+							</el-button>
 							<span v-else class="empty-text">-</span>
 						</template>
 					</el-table-column>
@@ -314,7 +349,12 @@ const queueDrawer = reactive({
 	currentImportId: 0,
 	activeKey: 'importPrompt',
 	staleMinutes: 10,
-	queues: [] as any[]
+	queues: [] as any[],
+	// 修复进行中暂停自动刷新，避免覆盖行 loading 状态
+	repairing: false,
+	repairingKey: '',
+	repairingItemId: 0,
+	bulkRepairLoading: false
 });
 
 let queueRefreshTimer: ReturnType<typeof window.setInterval> | undefined;
@@ -616,7 +656,12 @@ async function reloadQueueStats(showLoading = true) {
 function startQueueAutoRefresh() {
 	stopQueueAutoRefresh();
 	queueRefreshTimer = window.setInterval(() => {
-		if (queueDrawer.visible && queueDrawer.currentImportId) {
+		// 修复进行中暂停自动刷新，避免覆盖正在 loading 的行状态
+		if (
+			queueDrawer.visible &&
+			queueDrawer.currentImportId &&
+			!queueDrawer.repairing
+		) {
 			reloadQueueStats(false);
 		}
 	}, 5000);
@@ -798,6 +843,118 @@ async function runImportAction(
 	}
 }
 
+function isQueueItemRepairing(row: any) {
+	return (
+		queueDrawer.repairing &&
+		queueDrawer.repairingItemId === row.id
+	);
+}
+
+function isQueueItemRepairDisabled(row: any) {
+	return (
+		queueDrawer.bulkRepairLoading ||
+		(queueDrawer.repairing && queueDrawer.repairingItemId !== row.id)
+	);
+}
+
+async function repairQueueItem(row: any) {
+	if (!queueDrawer.currentImportId) {
+		return;
+	}
+	if (row.blocked || !row.repairable) {
+		return;
+	}
+	try {
+		await ElMessageBox.confirm(
+			`确定修复「${queueDrawer.activeKey}」队列该项？`,
+			'提示',
+			{ type: 'warning' }
+		);
+	} catch {
+		return;
+	}
+	queueDrawer.repairing = true;
+	queueDrawer.repairingKey = queueDrawer.activeKey;
+	queueDrawer.repairingItemId = row.id;
+	try {
+		const res: any = await podGenerationImportService.repairQueueItem({
+			importId: queueDrawer.currentImportId,
+			queueKey: queueDrawer.activeKey,
+			targetId: row.id,
+			targetType: row.repairTargetType || 'item'
+		});
+		// 后端兜底可能返回 blocked/skipped
+		if (res?.status === 'blocked') {
+			ElMessage.warning(res.message || '当前项被阻塞，无法修复');
+		} else if (res?.status === 'skipped') {
+			ElMessage.info(res.message || '当前项无需修复');
+		} else {
+			ElMessage.success('修复完成');
+		}
+		await reloadQueueStats(false);
+		Crud.value?.refresh();
+	} catch (err: any) {
+		ElMessage.error(err?.message || '修复失败');
+	} finally {
+		queueDrawer.repairing = false;
+		queueDrawer.repairingKey = '';
+		queueDrawer.repairingItemId = 0;
+	}
+}
+
+async function repairCurrentQueue() {
+	if (!queueDrawer.currentImportId) {
+		return;
+	}
+	const queue = queueDrawer.queues.find(
+		(item: any) => item.key === queueDrawer.activeKey
+	);
+	const queueName = queue?.name || queueDrawer.activeKey;
+	try {
+		await ElMessageBox.confirm(
+			`确定批量修复「${queueName}」的全部失败项？会跳过被前序依赖阻塞的项。`,
+			'提示',
+			{ type: 'warning' }
+		);
+	} catch {
+		return;
+	}
+	queueDrawer.repairing = true;
+	queueDrawer.repairingKey = queueDrawer.activeKey;
+	queueDrawer.bulkRepairLoading = true;
+	try {
+		const res: any = await podGenerationImportService.repairQueue({
+			importId: queueDrawer.currentImportId,
+			queueKey: queueDrawer.activeKey
+		});
+		const repaired = Number(res?.repaired || 0);
+		const blocked = Number(res?.blocked || 0);
+		const failed = Number(res?.failed || 0);
+		const total = Number(res?.total || 0);
+		if (failed) {
+			ElMessage.warning(
+				`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}，失败 ${failed}`
+			);
+		} else if (repaired) {
+			ElMessage.success(
+				`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}`
+			);
+		} else {
+			ElMessage.info(
+				`共 ${total} 项：成功 ${repaired}，阻塞 ${blocked}`
+			);
+		}
+		await reloadQueueStats(false);
+		Crud.value?.refresh();
+	} catch (err: any) {
+		ElMessage.error(err?.message || '批量修复失败');
+	} finally {
+		queueDrawer.repairing = false;
+		queueDrawer.repairingKey = '';
+		queueDrawer.bulkRepairLoading = false;
+	}
+}
+
 function goBatch(id: number) {
 	router.push(`/pod/generation/detail/${id}`);
 }
@@ -893,6 +1050,12 @@ onBeforeUnmount(() => {
 	justify-content: space-between;
 	gap: 12px;
 	margin-bottom: 12px;
+}
+
+.queue-toolbar__actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
 }
 
 .stale-tag {
